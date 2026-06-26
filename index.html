@@ -4376,9 +4376,18 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
   box.innerHTML = allInvs.map(inv => {
     const total = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
+
+    // Ambil tanggal kirim dari Surat Jalan terkait, fallback ke tanggal invoice
+    const soByRef = inv.soId ? data.sos?.find(s => s.id === inv.soId) : null;
+    const soByNo  = inv.soNo ? data.sos?.find(s => s.no === inv.soNo) : null;
+    const so = soByRef || soByNo || null;
+    const tglKirim = so?.date
+      ? new Date(so.date).toLocaleDateString('id-ID')
+      : new Date(inv.date).toLocaleDateString('id-ID');
+
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.no}" ${checked} style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${new Date(inv.date).toLocaleDateString('id-ID')} — ${rupiah(total)}</span>
+      <span><strong>${inv.no}</strong> — ${tglKirim} — ${rupiah(total)}</span>
     </label>`;
   }).join('');
 }
