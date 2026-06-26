@@ -4036,6 +4036,7 @@ function switchPage(pageName) {
     masuk: '📥 Barang Masuk',
     so: '🚚 Surat Jalan',
     inv: '💰 Invoice',
+    sttp: '🧾 Tanda Terima Dokumen',
     customers: '👥 Supplier/Outlet',
     settings: '⚙️ Pengaturan',
     profile: '👤 Profil',
@@ -4062,6 +4063,8 @@ function switchPage(pageName) {
     renderCustomers();
   } else if (pageName === 'settings') {
     loadSettings();
+  } else if (pageName === 'sttp') {
+    renderSttps();
   } else if (pageName === 'rekap') {
     initRekapPage();
   } else if (pageName === 'profile') {
@@ -4843,6 +4846,7 @@ function startApp() {
   renderSOs();
   renderInvs();
   renderMasuk();
+  renderSttps();
   
   document.getElementById('po-date').value = today();
   document.getElementById('so-date').value = today();
