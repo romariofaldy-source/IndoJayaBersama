@@ -3696,10 +3696,16 @@ function generatePDFPreview(type) {
     detailRightHtml = rows;
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
-    const refPoNo = soRecord?.poNo || doc.poNo || null;
+    const soById   = doc.soId ? data.sos.find(s => s.id === doc.soId) : null;
+    const soRef    = soById || soRecord || null;
+    const refPoNo  = soRef?.poNo || doc.poNo || null;
+    const tglKirimInv = soRef?.date
+      ? new Date(soRef.date).toLocaleDateString('id-ID')
+      : null;
     let rows = '';
     if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${refPoNo}</strong></p>`;
     if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No SJ: <strong>${doc.soNo}</strong></p>`;
+    if (tglKirimInv) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${tglKirimInv}</strong></p>`;
     rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Term Payment: <strong>7 Hari</strong></p>`;
     detailRightHtml = rows;
   }
