@@ -4715,13 +4715,10 @@ const DOT_MATRIX_CSS = `
     color: #000;
     background: #fff;
   }
-
-  /* ── RESET: buang semua warna / shadow ── */
   body * {
     box-shadow: none !important;
     text-shadow: none !important;
   }
-
   .pdf-content {
     width: 100% !important;
     padding: 0 !important;
@@ -4730,10 +4727,6 @@ const DOT_MATRIX_CSS = `
     background: #fff !important;
     color: #000 !important;
   }
-
-  /* ── HEADER ATAS: logo kiri, judul kanan ── */
-  /* Grid 2 kolom persis seperti preview */
-  .pdf-content > div:first-child,
   .doc-header {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
@@ -4744,23 +4737,17 @@ const DOT_MATRIX_CSS = `
     background: transparent !important;
     align-items: start !important;
   }
-
-  /* Kolom kanan header: rata kanan */
   .doc-header > *:last-child,
   .doc-header > div:last-child {
     text-align: right !important;
   }
-
-  /* ── JUDUL DOKUMEN (Surat Jalan, Invoice, dll) ── */
-  /* Biru di preview → hitam tebal di dot matrix */
   h1, .doc-title {
     font-size: 22pt !important;
     font-weight: bold !important;
     color: #000 !important;
     margin-bottom: 8px !important;
   }
-
-  /* ── TABEL ITEM ── */
+  /* TABEL */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
@@ -4768,36 +4755,29 @@ const DOT_MATRIX_CSS = `
     margin: 12px 0 !important;
     table-layout: auto !important;
   }
-
-  /* Header tabel: background hitam + teks putih (sama seperti preview navy) */
-  thead tr,
+  /* HEADER TABEL: NO background, teks hitam bold, garis atas-bawah */
+  thead tr { background: transparent !important; background-color: transparent !important; }
   th {
-    background: #000 !important;
-    background-color: #000 !important;
-    color: #fff !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  th {
-    padding: 8px 10px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #000 !important;
+    padding: 7px 10px !important;
     font-size: 9pt !important;
     font-weight: bold !important;
     text-align: left !important;
     text-transform: uppercase !important;
     letter-spacing: 0.3px !important;
-    border: 1px solid #000 !important;
-  }
-  th:last-child { text-align: right !important; }
-  th:nth-child(2),
-  th:nth-child(3) { text-align: center !important; }
-
-  /* Body tabel */
-  td {
-    padding: 7px 10px !important;
-    border-bottom: 1px solid #ccc !important;
+    border-top: 2px solid #000 !important;
+    border-bottom: 2px solid #000 !important;
     border-left: none !important;
     border-right: none !important;
-    border-top: none !important;
+  }
+  th:last-child { text-align: right !important; }
+  th:nth-child(2), th:nth-child(3) { text-align: center !important; }
+  /* BODY TABEL: NO garis per baris */
+  td {
+    padding: 7px 10px !important;
+    border: none !important;
     font-size: 9.5pt !important;
     color: #000 !important;
     background: transparent !important;
@@ -4806,50 +4786,36 @@ const DOT_MATRIX_CSS = `
   td:last-child { text-align: right !important; }
   td:nth-child(2) { text-align: center !important; }
   td:nth-child(3) { text-align: right !important; }
-
-  tbody tr:last-child td { border-bottom: 2px solid #000 !important; }
-
-  /* ── SUMMARY (Subtotal, Diskon, PPN, TOTAL) ── */
-  /* Tabel summary: no border kiri/kanan/atas, separator tipis */
-  .summary-table td,
-  table.summary td {
+  /* Garis penutup setelah tbody terakhir */
+  tbody tr:last-child td { border-bottom: 1px solid #000 !important; }
+  /* SUMMARY */
+  .summary-table td, table.summary td {
     border: none !important;
-    border-bottom: 1px solid #ddd !important;
-    padding: 5px 10px !important;
+    padding: 4px 10px !important;
     font-size: 9.5pt !important;
     color: #000 !important;
     background: transparent !important;
   }
-  .summary-table tr:last-child td,
-  table.summary tr:last-child td {
+  .summary-table tr:last-child td, table.summary tr:last-child td {
     border-top: 2px solid #000 !important;
-    border-bottom: none !important;
     font-weight: bold !important;
     font-size: 11pt !important;
   }
-
-  /* ── TOTAL besar di kanan bawah ── */
   .total-amount, [style*="font-size:20"], [style*="font-size: 20"] {
     font-size: 14pt !important;
     font-weight: bold !important;
     color: #000 !important;
   }
-
-  /* ── CATATAN BOX ── */
-  .catatan-box,
+  /* CATATAN BOX */
   [style*="border:1px solid #BBDEFB"],
-  [style*="border: 1px solid #BBDEFB"],
-  [style*="border:1px solid"],
-  [style*="border: 1px"] {
+  [style*="border: 1px solid #BBDEFB"] {
     border: 1px solid #000 !important;
     background: transparent !important;
     color: #000 !important;
     padding: 10px 14px !important;
     margin: 12px 0 !important;
   }
-
-  /* ── TANDA TANGAN ── */
-  .signature-row,
+  /* TANDA TANGAN */
   [style*="display:flex;justify-content:space-between;margin-top"] {
     display: flex !important;
     justify-content: space-between !important;
@@ -4859,74 +4825,38 @@ const DOT_MATRIX_CSS = `
     width: 100% !important;
     background: transparent !important;
   }
-  .signature-row > div,
-  .signature-row > * {
-    text-align: center !important;
-    min-width: 160px !important;
-    color: #000 !important;
-    background: transparent !important;
-  }
-
-  /* ── FORCE semua warna text & bg ── */
+  /* FORCE semua teks hitam, bg transparan */
   p, span, div, strong, b, small, label {
     color: #000 !important;
     background: transparent !important;
     background-color: transparent !important;
   }
-
-  /* Teks label abu2 di preview → hitam normal */
-  [style*="color:#8A8A9A"],
-  [style*="color: #8A8A9A"],
-  [style*="color:#666"],
-  [style*="color: #666"],
-  [style*="color:#888"],
-  [style*="color:#aaa"],
-  [style*="color:#555"] {
-    color: #000 !important;
-    opacity: 0.75 !important;
-  }
-
-  /* Warna biru/purple → hitam */
-  [style*="color:#1E5A96"],
-  [style*="color: #1E5A96"],
-  [style*="color:#0F2D52"],
-  [style*="color:#7C6FF7"],
-  [style*="color:#1a6fab"],
-  [style*="color:var(--purple)"],
-  [style*="color:var(--blue)"] {
-    color: #000 !important;
-  }
-
-  /* Background berwarna → transparan */
-  [style*="background:#0F2D52"],
-  [style*="background:#1E5A96"],
-  [style*="background:#BBDEFB"],
-  [style*="background:#FAFAFE"],
-  [style*="background:var("] {
-    background: transparent !important;
-    background-color: transparent !important;
-  }
-
-  /* Gambar logo */
-  img {
-    max-width: 65px !important;
-    max-height: 65px !important;
-    height: auto !important;
-  }
-
+  [style*="color:#8A8A9A"],[style*="color: #8A8A9A"],
+  [style*="color:#666"],[style*="color:#888"],
+  [style*="color:#aaa"],[style*="color:#555"] { color: #444 !important; }
+  [style*="color:#1E5A96"],[style*="color:#0F2D52"],
+  [style*="color:#7C6FF7"],[style*="color:#1a6fab"] { color: #000 !important; }
+  [style*="background:#0F2D52"],[style*="background:#1E5A96"],
+  [style*="background:#BBDEFB"],[style*="background:#FAFAFE"],
+  [style*="background:var("] { background: transparent !important; background-color: transparent !important; }
+  img { max-width: 65px !important; max-height: 65px !important; height: auto !important; }
   @media print {
     @page { size: A4 portrait; margin: 10mm 12mm; }
     body { margin: 0; }
     thead { display: table-header-group; }
     tr { page-break-inside: avoid; }
-    thead tr th {
-      background: #000 !important;
-      color: #fff !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
   }
 `;
+
+// ── Hapus "Rp " dari semua text node dalam clone ──
+function stripRp(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  while ((node = walker.nextNode())) {
+    // Hapus "Rp " atau "Rp" diikuti angka
+    node.nodeValue = node.nodeValue.replace(/Rp\s*/g, '');
+  }
+}
 
 // ── Clone & bersihkan untuk dot matrix ──
 function buildDotMatrixClone(containerId) {
@@ -4935,45 +4865,45 @@ function buildDotMatrixClone(containerId) {
 
   const clone = contentEl.cloneNode(true);
 
-  // Fix inline style: warna teks/bg yang di-hardcode di elemen
+  // Strip warna inline
   clone.querySelectorAll('*').forEach(el => {
     const s = el.style;
-    // Background berwarna → transparan (kecuali thead th nanti di-handle CSS)
     if (s.background && !el.matches('th')) s.background = 'transparent';
     if (s.backgroundColor && !el.matches('th')) s.backgroundColor = 'transparent';
-    // Warna teks bukan hitam → hitam
-    if (s.color && s.color !== '#000' && s.color !== '#000000' && s.color !== 'rgb(0,0,0)') {
-      s.color = '#000000';
-    }
+    if (s.color && s.color !== '#000' && s.color !== '#000000' && s.color !== 'rgb(0,0,0)') s.color = '#000000';
     s.boxShadow = 'none';
     s.textShadow = 'none';
     s.borderRadius = '0';
   });
 
-  // Header tabel → hitam + teks putih (mirip navy preview)
+  // Header tabel: NO background, teks hitam
   clone.querySelectorAll('th').forEach(th => {
     th.style.cssText = `
-      background:#000!important;
-      background-color:#000!important;
-      color:#fff!important;
-      padding:8px 10px!important;
-      font-weight:bold!important;
-      font-size:9pt!important;
-      text-transform:uppercase!important;
-      border:1px solid #000!important;
+      background: transparent !important;
+      background-color: transparent !important;
+      color: #000 !important;
+      font-weight: bold !important;
+      font-size: 9pt !important;
+      padding: 7px 10px !important;
+      text-transform: uppercase !important;
+      border-top: 2px solid #000 !important;
+      border-bottom: 2px solid #000 !important;
+      border-left: none !important;
+      border-right: none !important;
     `;
   });
 
-  // TD: bersih
+  // TD: hapus semua border
   clone.querySelectorAll('td').forEach(td => {
     td.style.background = 'transparent';
     td.style.backgroundColor = 'transparent';
     td.style.color = '#000';
-    td.style.borderLeft = 'none';
-    td.style.borderRight = 'none';
-    td.style.borderTop = 'none';
-    td.style.borderBottom = '1px solid #ccc';
+    td.style.border = 'none';
+    td.style.borderBottom = 'none';
   });
+
+  // Hapus "Rp " dari semua teks
+  stripRp(clone);
 
   // Logo
   clone.querySelectorAll('img').forEach(img => {
@@ -5022,10 +4952,10 @@ function downloadDotMatrixPDF(containerId) {
     return;
   }
 
-  const btn = document.querySelector('#' + (containerId === 'pdfContent' ? 'pdfModal' : 'sttpPdfModal') + ' .modal-footer .btn-pdf');
+  const modalId = containerId === 'pdfContent' ? 'pdfModal' : 'sttpPdfModal';
+  const btn = document.querySelector('#' + modalId + ' .modal-footer .btn-pdf');
   const origLabel = btn ? btn.innerHTML : '';
   if (btn) { btn.innerHTML = '⏳ Proses...'; btn.disabled = true; }
-  const restore = () => { if (btn) { btn.innerHTML = origLabel; btn.disabled = false; } wrapper.remove(); };
 
   const CAPTURE_WIDTH = 794;
   const wrapper = document.createElement('div');
@@ -5043,21 +4973,16 @@ function downloadDotMatrixPDF(containerId) {
   document.body.appendChild(wrapper);
   void inner.offsetHeight;
 
+  const restore = () => {
+    if (btn) { btn.innerHTML = origLabel; btn.disabled = false; }
+    wrapper.remove();
+  };
+
   html2canvas(inner, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
-    windowWidth: CAPTURE_WIDTH,
-    onclone: (doc) => {
-      // Paksa th hitam di canvas clone
-      doc.querySelectorAll('th').forEach(th => {
-        th.style.setProperty('background', '#000', 'important');
-        th.style.setProperty('background-color', '#000', 'important');
-        th.style.setProperty('color', '#fff', 'important');
-        th.style.setProperty('-webkit-print-color-adjust', 'exact', 'important');
-        th.style.setProperty('print-color-adjust', 'exact', 'important');
-      });
-    }
+    windowWidth: CAPTURE_WIDTH
   }).then(canvas => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -5069,14 +4994,12 @@ function downloadDotMatrixPDF(containerId) {
     const mmPerPx = usableW / canvas.width;
     const pageHPx = usableH / mmPerPx;
 
-    // Safe cut points: potong di batas baris tabel
     const safeCuts = new Set([0]);
     const elTop = inner.getBoundingClientRect().top;
     inner.querySelectorAll('tr, .pdf-footer').forEach(node => {
       const r = node.getBoundingClientRect();
       if (r.height === 0) return;
-      const bp = (r.bottom - elTop) * 2;
-      if (bp > 0) safeCuts.add(Math.round(bp));
+      safeCuts.add(Math.round((r.bottom - elTop) * 2));
     });
     const cutPoints = Array.from(safeCuts).sort((a, b) => a - b);
 
@@ -5086,10 +5009,8 @@ function downloadDotMatrixPDF(containerId) {
       let cutY = idealBottom < canvas.height
         ? (cutPoints.filter(p => p > srcY && p <= idealBottom).pop() || idealBottom)
         : canvas.height;
-
       const sliceH = cutY - srcY;
       if (sliceH <= 0) { srcY = cutY + 1; continue; }
-
       const sc = document.createElement('canvas');
       sc.width = canvas.width;
       sc.height = Math.ceil(sliceH);
