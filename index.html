@@ -4910,7 +4910,51 @@ function buildDotMatrixClone(containerId) {
     img.style.height = 'auto';
   });
 
+  // ── Susun ulang blok tanda tangan: LABEL di atas, space TTD, baru garis ──
+  restructureSignatureForDotMatrix(clone);
+
   return clone;
+}
+
+// Pindahkan label Pengirim/Penerima/Dibuat Oleh/dll ke ATAS, kasih space kosong
+// untuk TTD, lalu garis tanda tangan ditaruh PALING BAWAH (tanpa teks di bawah garis)
+function restructureSignatureForDotMatrix(clone) {
+  const containers = Array.from(clone.querySelectorAll('div')).filter(d => {
+    const s = d.getAttribute('style') || '';
+    return s.includes('justify-content:space-between') && s.includes('border-top');
+  });
+
+  containers.forEach(container => {
+    // Hilangkan garis pemisah di atas seluruh blok TTD, kasih jarak dari konten sebelumnya
+    container.style.borderTop = 'none';
+    container.style.marginTop = '34px';
+    container.style.paddingTop = '0';
+
+    Array.from(container.children).forEach(col => {
+      const kids = Array.from(col.children);
+      if (kids.length < 2) return;
+
+      const blankSpace = kids[0]; // div height:50px (space TTD lama)
+      const labelLine = kids[1];  // div border-top + teks label (garis lama + label di bawahnya)
+      const labelText = (labelLine.textContent || '').trim();
+
+      col.innerHTML = '';
+
+      const labelDiv = document.createElement('div');
+      labelDiv.style.cssText = 'font-size:11px;color:#000;margin-bottom:6px';
+      labelDiv.textContent = labelText;
+
+      const spaceDiv = document.createElement('div');
+      spaceDiv.style.height = (blankSpace.style.height || '50px');
+
+      const lineDiv = document.createElement('div');
+      lineDiv.style.cssText = 'border-top:1px solid #000;width:160px;margin:0 auto';
+
+      col.appendChild(labelDiv);
+      col.appendChild(spaceDiv);
+      col.appendChild(lineDiv);
+    });
+  });
 }
 
 // ── CETAK ke printer ──
@@ -4955,6 +4999,40 @@ function downloadDotMatrixPDF(containerId) {
   const origLabel = btn ? btn.innerHTML : '';
   if (btn) { btn.innerHTML = '⏳ Proses...'; btn.disabled = true; }
 
+  // Samakan format nama file dengan Download PDF biasa
+  const buildDotMatrixFileName = () => {
+    const typeLabels = { po: 'PO-Outlet', so: 'Surat-Jalan', inv: 'Invoice' };
+    if (containerId === 'pdfContent') {
+      const type = pdfDocData.type;
+      const d = pdfDocData.doc;
+      if (!d) return `DotMatrix-${today()}.pdf`;
+      const data = loadData();
+      let partyName = 'Outlet';
+      if (type === 'po') {
+        const supplier = data.customers.find(c => c.id == d.supplier);
+        partyName = supplier?.name || 'Outlet';
+      } else {
+        const customer = data.customers.find(c => c.id == d.customer);
+        partyName = customer?.name || 'Outlet';
+      }
+      const safeParty = partyName.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+      const dt = new Date(d.date);
+      const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+      if (type === 'so' || type === 'inv') return `${d.no}-IJB-${safeParty}-${tgl}.pdf`;
+      return `${typeLabels[type]}-${d.no}.pdf`;
+    } else {
+      const sttp = currentSttpData;
+      if (!sttp) return `DotMatrix-${today()}.pdf`;
+      const data = loadData();
+      const cust = data.customers.find(c => c.id == sttp.customer);
+      const safeParty = (cust?.name || 'PT').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+      const dt = new Date(sttp.date);
+      const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+      return `${sttp.no}-${safeParty}-${tgl}.pdf`;
+    }
+  };
+  const dotMatrixFileName = buildDotMatrixFileName();
+
   const CAPTURE_WIDTH = 794;
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `position:fixed;top:0;left:-99999px;width:${CAPTURE_WIDTH}px;background:#fff;padding:24px 28px;box-sizing:border-box`;
@@ -4986,7 +5064,8 @@ function downloadDotMatrixPDF(containerId) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const mx = 12, mt = 12, mb = 12;
+    // mb diperbesar jadi buffer "smart cut" — biar konten tidak mepet ke bawah halaman
+    const mx = 12, mt = 14, mb = 22;
     const usableW = pageW - mx * 2;
     const usableH = pageH - mt - mb;
     const mmPerPx = usableW / canvas.width;
@@ -5023,7 +5102,7 @@ function downloadDotMatrixPDF(containerId) {
 
     const ts = new Date();
     const tgl = `${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}`;
-    pdf.save(`DotMatrix-${tgl}.pdf`);
+    pdf.save(dotMatrixFileName);
     showToast('PDF Dot Matrix berhasil didownload!');
     restore();
   }).catch(err => {
