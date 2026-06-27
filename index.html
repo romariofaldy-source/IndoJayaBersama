@@ -180,12 +180,12 @@
   /* PDF Preview */
   .pdf-preview-container { width: 100%; max-height: 60vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: #f5f5f5; margin: 14px 0; }
   .pdf-scale-outer { position: relative; overflow: hidden; }
-  .pdf-content { background: white; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); line-height: 1.6; color: var(--text); width: 700px; box-sizing: border-box; transform-origin: top left; display: flex; flex-direction: column; }
+  .pdf-content { background: white; padding: 40px; box-shadow: none; line-height: 1.8; color: #000000; width: 700px; box-sizing: border-box; transform-origin: top left; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; min-height: 1000px; }
   .doc-header { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
   .doc-header .block { }
   .doc-header .block p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
   .doc-header .block strong { font-size: 14px; display: block; margin-bottom: 8px; }
-  .pdf-footer { padding: 20px 0; border-top: 1px solid var(--border); margin-top: 20px; font-size: 11px; color: var(--text-muted); }
+  .pdf-footer { padding: 20px 0; border-top: 2px solid #000000; margin-top: 20px; font-size: 12px; color: #000000; font-weight: bold; }
 
   /* Popular Items Grid */
   .popular-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
@@ -280,7 +280,7 @@
   body.dark-mode .modal-overlay { background: rgba(0,0,0,0.6); }
   body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
   body.dark-mode .toast { background: #2c2c3a; color: #ECECF5; }
-  body.dark-mode .pdf-content { background: #fff; color: #1A1A2E; }
+  body.dark-mode .pdf-content { background: #ffffff; color: #000000; font-family: 'Courier New', Courier, monospace; }
   body.dark-mode .logo-preview { background: var(--bg); }
   body.dark-mode .slider:before { background-color: #ECECF5; }
 </style>
@@ -772,8 +772,6 @@
               <th>Tanggal Kirim</th>
               <th>Untuk (Customer)</th>
               <th>Invoice</th>
-              <th>Total</th>
-              <th>Jatuh Tempo</th>
               <th>Catatan</th>
               <th>Aksi</th>
             </tr>
@@ -1188,7 +1186,6 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pdfModal')">Tutup</button>
-      <button class="btn btn-outline" onclick="printDocNative('#pdfContent .pdf-content', 'Cetak Dokumen')">🖨️ Cetak</button>
       <button class="btn btn-primary" onclick="downloadPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -1253,14 +1250,6 @@
           <span style="font-size:12px;color:var(--text-muted)">-- Pilih customer terlebih dahulu --</span>
         </div>
       </div>
-      <!-- MANUAL ROWS -->
-      <div class="form-group full" style="margin-top:14px">
-        <label style="display:flex;align-items:center;justify-content:space-between">
-          <span>Tambah Baris Manual (Nama File / Nominal / No PO)</span>
-          <button class="btn btn-sm btn-outline" onclick="addManualSttpRow()" type="button" style="font-size:12px">+ Tambah Baris</button>
-        </label>
-        <div id="sttp-manual-rows" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
-      </div>
       <div class="form-group full" style="margin-top:10px">
         <label>Catatan / Keterangan (opsional)</label>
         <textarea id="sttp-notes" placeholder="Catatan untuk penagihan, syarat pembayaran, dll"></textarea>
@@ -1286,7 +1275,6 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('sttpPdfModal')">Tutup</button>
-      <button class="btn btn-outline" onclick="printDocNative('#sttpPdfContent .pdf-content', 'Cetak Tanda Terima')">🖨️ Cetak</button>
       <button class="btn btn-primary" onclick="downloadSttpPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -3615,156 +3603,173 @@ function generatePDFPreview(type) {
   const doc = pdfDocData.doc;
   const profile = getCompanyProfile();
   const logo = profile.logo;
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID') : '-';
-  const fmtNum = (n) => Math.round(n || 0).toLocaleString('id-ID');
-
+  
   const typeLabels = { po: 'PO Outlet', so: 'Surat Jalan', inv: 'Invoice' };
   const isSJ = type === 'so';
   const isInv = type === 'inv';
-  const isPO = type === 'po';
-
-  let partyName, partyAddr, partyPhone;
-  if (isPO) {
+  
+  let partyLabel, partyName, partyAddr, partyPhone;
+  if (type === 'po') {
+    partyLabel = 'Outlet';
     const supplier = data.customers.find(c => c.id == doc.supplier);
     partyName = supplier?.name || 'Unknown';
     partyAddr = supplier?.address || '';
     partyPhone = supplier?.phone || '';
   } else {
+    partyLabel = 'Kepada Yth';
     const customer = data.customers.find(c => c.id == doc.customer);
     partyName = customer?.name || 'Unknown';
     partyAddr = customer?.address || '';
     partyPhone = customer?.phone || '';
   }
-
+  
   const calcTotal = (items) => items.reduce((sum, item) => sum + (item.qty * item.price), 0);
   const total = calcTotal(doc.items);
   const discount = doc.discount || 0;
-  const grandTotal = Math.max(0, total - discount);
-
-  // Baris info kanan (No PO/No SJ/No Invoice, tanggal-tanggal terkait)
-  let infoRows = [];
-  if (isPO) {
-    infoRows.push(['Tanggal', fmtDate(doc.date)]);
-    if (doc.deliveryDate) infoRows.push(['Tgl Kirim', fmtDate(doc.deliveryDate)]);
-    infoRows.push(['No PO', doc.no]);
-  } else if (isSJ) {
-    const poRef = doc.poNo ? data.pos.find(p => p.no === doc.poNo) : null;
-    const tglOrder = poRef?.date || doc.date;
-    if (doc.poNo) infoRows.push(['No PO', doc.poNo]);
-    infoRows.push(['Tgl Order', fmtDate(tglOrder)]);
-    infoRows.push(['Tgl Dikirim', fmtDate(doc.date)]);
-    infoRows.push(['No SJ', doc.no]);
-  } else if (isInv) {
-    const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
-    const soById   = doc.soId ? data.sos.find(s => s.id === doc.soId) : null;
-    const soRef    = soById || soRecord || null;
-    const refPoNo  = soRef?.poNo || doc.poNo || null;
-    infoRows.push(['Tanggal', fmtDate(doc.date)]);
-    if (refPoNo) infoRows.push(['No PO', refPoNo]);
-    if (doc.soNo) infoRows.push(['No SJ', doc.soNo]);
-    if (soRef?.date) infoRows.push(['Tgl Kirim', fmtDate(soRef.date)]);
-    infoRows.push(['Term Payment', '7 Hari']);
-    infoRows.push(['No Invoice', doc.no]);
-  }
-  const infoRowsHtml = infoRows.map(([label, val]) => `
-    <tr>
-      <td style="padding:2px 0;font-size:12px;white-space:nowrap">${label}</td>
-      <td style="padding:2px 8px;font-size:12px">:</td>
-      <td style="padding:2px 0;font-size:12px;text-align:right;font-weight:700;white-space:nowrap">${val}</td>
-    </tr>`).join('');
-
-  // Baris item — NO | NAMA BARANG | QTY | UNIT | HARGA | TOTAL HARGA
-  const COLS = 6;
+  const ppn = 0;
+  const grandTotal = Math.max(0, total - discount) + ppn;
+  
+  // Unified item rows — semua tipe tampilkan: Nama, Qty+UOM, Harga Satuan, Subtotal
   let itemRows = doc.items.map((item, idx) => {
     const subtotal = item.qty * item.price;
-    return `<tr>
-      <td style="border-right:1px solid #000;padding:6px 6px;text-align:center">${idx + 1}</td>
-      <td style="border-right:1px solid #000;padding:6px 10px">${item.name}</td>
-      <td style="border-right:1px solid #000;padding:6px 6px;text-align:center">${item.qty}</td>
-      <td style="border-right:1px solid #000;padding:6px 6px;text-align:center">${(item.uom || 'pcs').toUpperCase()}</td>
-      <td style="border-right:1px solid #000;padding:6px 10px;text-align:right">${fmtNum(item.price)}</td>
-      <td style="padding:6px 10px;text-align:right">${fmtNum(subtotal)}</td>
+    const bg = idx % 2 === 1 ? 'background:#F8F6FF' : '';
+    return `<tr style="${bg}">
+      <td style="padding:10px 12px">${item.name}</td>
+      <td style="text-align:center;padding:10px 12px">${item.qty} ${item.uom || 'pcs'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${subtotal.toLocaleString('id-ID')}</td>
     </tr>`;
   }).join('');
-
-  // Baris kosong pengisi, biar garis kolom tetap turun ke bawah walau item-nya sedikit
-  const MIN_ROWS = 7;
-  const fillerCount = Math.max(0, MIN_ROWS - doc.items.length);
-  let fillerRows = '';
-  for (let i = 0; i < fillerCount; i++) {
-    fillerRows += `<tr>
-      <td style="border-right:1px solid #000;padding:7px 6px">&nbsp;</td>
-      <td style="border-right:1px solid #000;padding:7px 10px">&nbsp;</td>
-      <td style="border-right:1px solid #000;padding:7px 6px">&nbsp;</td>
-      <td style="border-right:1px solid #000;padding:7px 6px">&nbsp;</td>
-      <td style="border-right:1px solid #000;padding:7px 10px">&nbsp;</td>
-      <td style="padding:7px 10px">&nbsp;</td>
-    </tr>`;
-  }
-
-  // Baris Terbilang + Sub Total / Diskon / Total — nyambung jadi satu tabel sama tabel item
-  const totalsRowsHtml = `
-    <tr>
-      <td colspan="4" rowspan="3" style="border:1px solid #000;border-top:2px solid #000;padding:10px;vertical-align:top">
-        <div style="font-size:12px">Terbilang :</div>
-        <div style="font-size:12px;font-weight:700;margin-top:4px">${terbilang(grandTotal)}</div>
-      </td>
-      <td style="border:1px solid #000;border-top:2px solid #000;padding:6px 10px;font-size:12px;font-weight:700">SUB TOTAL</td>
-      <td style="border:1px solid #000;border-top:2px solid #000;padding:6px 10px;font-size:12px;text-align:right">${fmtNum(total)}</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #000;padding:6px 10px;font-size:12px;font-weight:700">DISKON</td>
-      <td style="border:1px solid #000;padding:6px 10px;font-size:12px;text-align:right;background:#e8e8e8">${fmtNum(discount)}</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #000;padding:6px 10px;font-size:12px;font-weight:700">TOTAL</td>
-      <td style="border:1px solid #000;padding:6px 10px;font-size:13px;font-weight:700;text-align:right;background:#e8e8e8">${fmtNum(grandTotal)}</td>
-    </tr>
-  `;
-
-  // Payment info — khusus Invoice, kotak sederhana di bawah tabel
-  let paymentHtml = '';
-  if (isInv) {
-    const paymentData = data.payment || {};
-    const bankName = paymentData.bankName || 'BCA';
-    const accountNumber = paymentData.accountNumber || '108-298-2153';
-    const accountHolder = paymentData.accountHolder || 'KHANSA DWI AGUSTINA';
-    paymentHtml = `
-      <div style="border:1px solid #000;padding:8px 12px;margin-top:14px;max-width:280px">
-        <div style="font-size:11px;font-weight:700;margin-bottom:4px">PAYMENT</div>
-        <table style="border-collapse:collapse;font-size:11px">
-          <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">Nama Bank</td><td style="padding:1px 0;font-weight:600">: ${bankName}</td></tr>
-          <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">No Rekening</td><td style="padding:1px 0;font-weight:600">: ${accountNumber}</td></tr>
-          <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">Atas Nama</td><td style="padding:1px 0;font-weight:600">: ${accountHolder}</td></tr>
+  
+  // Totals — hanya untuk SJ dan PO
+  let totalsHtml = '';
+  if (!isInv) {
+    totalsHtml = `
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <table style="border-collapse:collapse;min-width:280px">
+          <tr>
+            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">Subtotal</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">Rp ${total.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">Diskon</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">- Rp ${discount.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">PPN</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">Rp ${ppn.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr style="border-top:2px solid #000000">
+            <td style="padding:10px 16px;font-weight:700;font-size:14px;color:#000000">TOTAL</td>
+            <td style="padding:10px 16px;text-align:right;font-weight:700;font-size:16px;color:#000000">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+          </tr>
         </table>
       </div>
     `;
   }
 
-  // Catatan — kotak bawah, selalu ditampilkan
-  const catatanHtml = `
-    <div style="border:1px solid #000;padding:10px 14px;margin-top:16px;min-height:70px">
-      <div style="font-weight:700;font-size:12px;margin-bottom:6px">Catatan :</div>
-      <div style="font-size:12px">${doc.notes || ''}</div>
-    </div>
-  `;
+  // Info tanggal tambahan di header (hanya PO yang masih pakai TGL KIRIM di sini)
+  let extraDateHtml = '';
+  if (type === 'po' && doc.deliveryDate) {
+    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#000000;font-weight:bold">TGL KIRIM</p><p style="margin:2px 0;font-weight:700;color:#000000">${new Date(doc.deliveryDate).toLocaleDateString('id-ID')}</p>`;
+  }
+
+  // Detail kanan — sejajar dengan nama & alamat pihak yang dituju
+  // SJ: No PO, Tanggal Order, Tanggal Kirim | INV: No PO, No SJ, Term Payment
+  let detailRightHtml = '';
+  if (isSJ) {
+    const poRef = doc.poNo ? data.pos.find(p => p.no === doc.poNo) : null;
+    const tglOrder = poRef?.date || doc.date;
+    const tglKirim = doc.date;
+    let rows = '';
+    if (doc.poNo) rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">No PO: <strong>${doc.poNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">Tanggal Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">Tanggal Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
+    detailRightHtml = rows;
+  } else if (isInv) {
+    const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
+    const refPoNo = soRecord?.poNo || doc.poNo || null;
+    let rows = '';
+    if (refPoNo) rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">No PO: <strong>${refPoNo}</strong></p>`;
+    if (doc.soNo) rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">No SJ: <strong>${doc.soNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">Term Payment: <strong>7 Hari</strong></p>`;
+    detailRightHtml = rows;
+  }
+
+  // Catatan — khusus Surat Jalan, kotak lebar 80%
+  let catatanHtml = '';
+  if (isSJ) {
+    catatanHtml = `
+      <div style="width:80%;margin-top:20px;padding:14px 16px;border:2px solid #000000;border-radius:0;background:white">
+        <div style="font-size:13px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
+        <div style="font-size:13px;color:#000000;font-weight:bold">${doc.notes || '-'}</div>
+      </div>
+    `;
+  }
+
+  // Terbilang & Payment — khusus Invoice
+  let terbilangHtml = '';
+  let paymentHtml = '';
+  if (isInv) {
+    terbilangHtml = `
+      <div style="display:flex;justify-content:center;align-items:flex-start;gap:32px;margin-top:16px">
+        <div style="max-width:340px;min-width:300px;padding:14px 18px;border:2px solid #000000;border-radius:0;background:white;margin-top:20px">
+          <div style="font-size:12px;color:#000000;margin-bottom:4px;font-weight:bold">TERBILANG</div>
+          <div style="font-weight:700;font-size:13px;color:#000000">${terbilang(grandTotal)}</div>
+        </div>
+        <table style="border-collapse:collapse">
+          <tr>
+            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">Subtotal</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">Rp ${total.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">Diskon</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">- Rp ${discount.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr style="border-bottom:2px solid #000000">
+            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">PPN</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">Rp ${ppn.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:14px;color:#000000">TOTAL</td>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:16px;color:#000000">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+          </tr>
+        </table>
+      </div>
+    `;
+    const paymentData = data.payment || {};
+    const bankName = paymentData.bankName || 'BCA';
+    const accountNumber = paymentData.accountNumber || '108-298-2153';
+    const accountHolder = paymentData.accountHolder || 'KHANSA DWI AGUSTINA';
+    paymentHtml = `
+      <div style="display:flex;justify-content:flex-start;margin-top:14px">
+        <div style="padding:8px 10px;border:2px solid #000000;border-radius:0;background:white;max-width:240px">
+          <div style="font-size:11px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">PAYMENT</div>
+          <table style="border-collapse:collapse;font-size:11px">
+            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">Nama Bank</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${bankName}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">No Rekening</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${accountNumber}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">Atas Nama</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${accountHolder}</td></tr>
+          </table>
+        </div>
+      </div>
+    `;
+  }
 
   // Tanda tangan — semua tipe (PO: Dibuat & Disetujui, SJ: Pengirim & Penerima, INV: Dibuat & Diterima)
   let sigLabels;
-  if (isPO) sigLabels = ['Dibuat Oleh', 'Disetujui Oleh'];
+  if (type === 'po') sigLabels = ['Dibuat Oleh', 'Disetujui Oleh'];
   else if (isSJ) sigLabels = [`Pengirim${doc.driver ? ' (' + doc.driver + ')' : ''}`, `Penerima (${partyName})`];
   else sigLabels = ['Dibuat Oleh', `Diterima (${partyName})`];
 
   const signatureHtml = `
-    <div style="flex:1 1 auto;min-height:20px"></div>
-    <div style="display:flex;justify-content:space-between;margin-top:30px;font-size:12px">
+    <div style="display:flex;justify-content:space-between;margin-top:auto;padding-top:40px;border-top:2px solid #000000;font-size:13px;color:#000000;font-weight:bold">
       <div style="text-align:center">
-        <div style="height:50px"></div>
-        <div style="border-top:1px solid #000;width:160px;padding-top:6px">${sigLabels[0]}</div>
+        <div style="height:60px"></div>
+        <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${sigLabels[0]}</div>
       </div>
       <div style="text-align:center">
-        <div style="height:50px"></div>
-        <div style="border-top:1px solid #000;width:160px;padding-top:6px">${sigLabels[1]}</div>
+        <div style="height:60px"></div>
+        <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${sigLabels[1]}</div>
       </div>
     </div>
   `;
@@ -3772,59 +3777,60 @@ function generatePDFPreview(type) {
   const pdfContent = document.getElementById('pdfContent');
   pdfContent.innerHTML = `
     <div class="pdf-content">
-      <!-- HEADER: kotak kiri identitas perusahaan, kotak kanan judul dokumen -->
-      <div style="display:flex;gap:14px;align-items:stretch;margin-bottom:16px">
-        <div style="flex:1 1 60%;border:1.5px solid #000;padding:12px 14px;display:flex;gap:12px;align-items:center;min-width:0">
-          ${logo ? `<img src="${logo}" style="width:60px;height:60px;object-fit:contain;flex-shrink:0">` : '<div style="width:60px;height:60px;border:2px solid #000;background:#fff;display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:18px;flex-shrink:0">IJ</div>'}
+      <!-- HEADER: Logo + Nama Perusahaan kiri | Judul Dokumen kanan -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #000000;gap:16px">
+        <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
+          ${logo ? `<img src="${logo}" style="width:56px;height:56px;border-radius:4px;object-fit:cover;flex-shrink:0">` : '<div style="width:56px;height:56px;border-radius:4px;background:#ffffff;display:flex;align-items:center;justify-content:center;color:#000000;font-weight:700;font-size:18px;flex-shrink:0;border:2px solid #000000">IJ</div>'}
           <div style="min-width:0">
-            <div style="font-size:15px;font-weight:800;color:#000;word-break:break-word">${profile.name}</div>
-            ${profile.address ? `<div style="font-size:10px;color:#000;margin-top:2px;word-break:break-word">${profile.address}</div>` : ''}
-            ${profile.phone ? `<div style="font-size:10px;color:#000;word-break:break-word">No Tlp : ${profile.phone}</div>` : ''}
+            <div style="font-size:18px;font-weight:700;color:#000000;word-break:break-word;overflow-wrap:break-word">${profile.name}</div>
+            ${profile.address ? `<div style="font-size:12px;color:#000000;margin-top:2px;word-break:break-word;overflow-wrap:break-word">${profile.address}</div>` : ''}
+            ${profile.phone ? `<div style="font-size:12px;color:#000000;word-break:break-word;overflow-wrap:break-word">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
-        <div style="flex:1 1 36%;border:1.5px solid #000;display:flex;align-items:center;justify-content:center;padding:12px">
-          <h1 style="margin:0;font-size:20px;font-weight:800;letter-spacing:0.5px;text-align:center;color:#000">${typeLabels[type].toUpperCase()}</h1>
+        <div style="text-align:right;flex-shrink:0">
+          <h1 style="color:#000000;font-size:${type === 'po' ? 24 : (isInv ? 42 : 32)}px;margin:0 0 4px;font-weight:700">${typeLabels[type]}</h1>
+          <p style="margin:0;font-size:14px;font-weight:700;color:#000000">${doc.no}</p>
+          <p style="margin:8px 0 0;font-size:12px;color:#000000;font-weight:bold">TANGGAL</p>
+          <p style="margin:2px 0;font-weight:700;font-size:13px">${new Date(doc.date).toLocaleDateString('id-ID')}</p>
+          ${extraDateHtml}
         </div>
       </div>
-
-      <!-- INFO: Kepada Yth (kiri) & detail dokumen (kanan) -->
-      <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:16px">
-        <div style="flex:1 1 55%;min-width:0">
-          <div style="font-style:italic;font-size:12px;margin-bottom:4px;color:#000">${isPO ? 'Kepada Yth (Outlet) :' : 'Kepada Yth :'}</div>
-          <div style="font-weight:700;font-size:14px;color:#000">${partyName}</div>
-          ${partyAddr ? `<div style="font-size:11px;color:#000;margin-top:4px;max-width:380px">${partyAddr}</div>` : ''}
-          ${partyPhone ? `<div style="font-size:11px;color:#000;margin-top:2px">No Telp : ${partyPhone}</div>` : ''}
+      
+      <!-- INFO: Pihak & Detail Dokumen -->
+      <div class="doc-header" style="margin-bottom:20px">
+        <div>
+          <p style="font-size:12px;color:#000000;text-transform:uppercase;margin-bottom:4px;font-weight:bold">${partyLabel}</p>
+          <strong style="font-size:16px;color:#000000">${partyName}</strong>
+          ${partyAddr ? `<p style="font-size:12px;color:#000000;margin-top:4px">${partyAddr}</p>` : ''}
+          ${partyPhone ? `<p style="font-size:12px;color:#000000">Telp: ${partyPhone}</p>` : ''}
         </div>
-        <div style="flex:0 0 260px">
-          <table style="width:100%;border-collapse:collapse;color:#000">${infoRowsHtml}</table>
+        <div style="text-align:right">
+          ${detailRightHtml}
+          ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#000000;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
         </div>
       </div>
-
-      <!-- TABEL ITEM + TOTAL menyatu, biar garis kolom turun terus walau item sedikit -->
-      <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;font-size:12px;color:#000">
+      
+      <!-- TABEL ITEM — kolom seragam untuk semua tipe -->
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;border:2px solid #000000">
         <thead>
-          <tr>
-            <th style="border:1px solid #000;padding:8px 6px;width:34px;font-weight:700">NO</th>
-            <th style="border:1px solid #000;padding:8px 10px;text-align:left;font-weight:700">NAMA BARANG</th>
-            <th style="border:1px solid #000;padding:8px 6px;width:50px;font-weight:700">QTY</th>
-            <th style="border:1px solid #000;padding:8px 6px;width:60px;font-weight:700">UNIT</th>
-            <th style="border:1px solid #000;padding:8px 10px;width:90px;font-weight:700">HARGA</th>
-            <th style="border:1px solid #000;padding:8px 10px;width:110px;font-weight:700">TOTAL HARGA</th>
+          <tr style="background:#ffffff;border:2px solid #000000">
+            <th style="text-align:left;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Nama Barang</th>
+            <th style="text-align:center;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Qty / UOM</th>
+            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Harga Satuan</th>
+            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Subtotal</th>
           </tr>
         </thead>
-        <tbody>
-          ${itemRows}
-          ${fillerRows}
-          ${totalsRowsHtml}
-        </tbody>
+        <tbody style="border:2px solid #000000">${itemRows}</tbody>
       </table>
-
-      ${paymentHtml}
+      
+      ${totalsHtml}
       ${catatanHtml}
+      ${terbilangHtml}
+      ${paymentHtml}
       ${signatureHtml}
     </div>
   `;
-
+  
   document.getElementById('pdfModal').classList.add('open');
   scalePdfPreview();
 }
@@ -3834,6 +3840,7 @@ function scalePdfPreview() {
   const content = document.querySelector('#pdfContent .pdf-content');
   const container = document.querySelector('.pdf-preview-container');
   if (!outer || !content || !container) return;
+  // lebar asli konten (intrinsic) sebelum di-scale
   const naturalWidth = content.offsetWidth || 700;
   const naturalHeight = content.offsetHeight;
   // lebar yang tersedia di dalam container (dikurangi padding kiri-kanan)
@@ -3854,56 +3861,6 @@ window.addEventListener('orientationchange', () => {
     setTimeout(scalePdfPreview, 200);
   }
 });
-
-function printDocNative(sourceSelector, docTitle) {
-  const sourceEl = document.querySelector(sourceSelector);
-  if (!sourceEl) {
-    showToast('Tidak ada dokumen untuk dicetak. Buka Preview PDF terlebih dahulu.');
-    return;
-  }
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    showToast('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
-    return;
-  }
-  printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>${docTitle}</title>
-<style>
-  @page { size: A4; margin: 12mm 10mm 14mm; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #fff; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #1A1A2E; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  img { max-width: 100%; }
-  table { border-collapse: collapse; }
-  .pdf-content {
-    width: auto !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    background: #fff !important;
-    transform: none !important;
-    display: flex;
-    flex-direction: column;
-    min-height: 263mm;
-  }
-  @media print {
-    .pdf-content { min-height: 263mm; }
-  }
-</style>
-</head>
-<body>${sourceEl.outerHTML}</body>
-</html>`);
-  printWindow.document.close();
-  printWindow.onload = function () {
-    setTimeout(function () {
-      printWindow.focus();
-      printWindow.print();
-    }, 200);
-  };
-}
 
 function downloadPDF() {
   const typeLabels = { po: 'PO-Outlet', so: 'Surat-Jalan', inv: 'Invoice' };
@@ -3931,7 +3888,7 @@ function downloadPDF() {
   };
   const fileName = buildFileName();
 
-  // Ambil konten yang sedang ditampilkan di Preview PDF
+  // Ambil persis konten yang sedang ditampilkan di Preview PDF
   const sourceEl = document.querySelector('#pdfContent .pdf-content');
   if (!sourceEl) {
     showToast('Tidak ada dokumen untuk diunduh. Silakan buka Preview PDF terlebih dahulu.');
@@ -3946,7 +3903,8 @@ function downloadPDF() {
   const originalLabel = downloadBtn ? downloadBtn.innerHTML : '';
   if (downloadBtn) { downloadBtn.innerHTML = '⏳ Memproses...'; downloadBtn.disabled = true; }
 
-  const CAPTURE_WIDTH = 794;
+  // Render ke elemen tersembunyi dengan lebar tetap agar layout konsisten
+  const CAPTURE_WIDTH = 794; // setara lebar A4 @ 96dpi
   const clone = sourceEl.cloneNode(true);
   const wrapper = document.createElement('div');
   wrapper.style.position = 'fixed';
@@ -3963,9 +3921,11 @@ function downloadPDF() {
     wrapper.remove();
   };
 
+  // Kumpulkan posisi safe-cut: ambil y-bottom setiap baris tabel di clone (px relatif ke clone)
   const getSafeCutPoints = (el, scale) => {
     const points = new Set([0]);
     const elTop = el.getBoundingClientRect().top;
+    // Semua baris tabel dan elemen block di dalam konten PDF
     el.querySelectorAll('tr, .pdf-footer').forEach(node => {
       const r = node.getBoundingClientRect();
       if (r.height === 0) return;
@@ -3975,8 +3935,10 @@ function downloadPDF() {
     return Array.from(points).sort((a, b) => a - b);
   };
 
+  // Wrapper sudah di-append ke DOM di atas, jadi getBoundingClientRect valid
+  // Paksa browser layout dulu sebelum ukur
   void clone.offsetHeight;
-  const safeCuts = getSafeCutPoints(clone, 2);
+  const safeCuts = getSafeCutPoints(clone, 2); // html2canvas scale=2
 
   html2canvas(clone, {
     scale: 2,
@@ -3986,38 +3948,62 @@ function downloadPDF() {
   }).then(canvas => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidthMM  = pdf.internal.pageSize.getWidth();
-    const pageHeightMM = pdf.internal.pageSize.getHeight();
-    const marginX = 10, marginTop = 12, marginBottom = 14;
+
+    const pageWidthMM   = pdf.internal.pageSize.getWidth();
+    const pageHeightMM  = pdf.internal.pageSize.getHeight();
+
+    const marginX      = 10;
+    const marginTop    = 12;
+    const marginBottom = 14;
+
     const usableWidthMM  = pageWidthMM - marginX * 2;
     const usableHeightMM = pageHeightMM - marginTop - marginBottom;
+
+    // mm per canvas-pixel (canvas sudah scale=2)
     const mmPerPx = usableWidthMM / canvas.width;
+
+    // Tinggi area konten per halaman dalam pixel canvas
     const pageHeightPx = usableHeightMM / mmPerPx;
-    let srcY = 0;
+
+    let srcY = 0; // posisi crop atas di canvas (px)
+
     while (srcY < canvas.height) {
       const idealBottom = srcY + pageHeightPx;
+
+      // Cari safe-cut point terdekat yang TIDAK melebihi idealBottom
+      // Kalau ga ada (konten menerus tanpa baris tabel), pakai idealBottom langsung
       let cutY = idealBottom;
       if (idealBottom < canvas.height) {
+        // Cari cut point terbesar yang <= idealBottom
         const candidate = safeCuts.filter(p => p > srcY && p <= idealBottom);
-        if (candidate.length > 0) cutY = candidate[candidate.length - 1];
+        if (candidate.length > 0) {
+          cutY = candidate[candidate.length - 1]; // titik paling bawah yg masih aman
+        }
+        // Kalau tidak ada sama sekali (baris sangat tinggi), potong di idealBottom aja
       } else {
         cutY = canvas.height;
       }
+
       const sliceHeightPx = cutY - srcY;
-      if (sliceHeightPx <= 0) { srcY = cutY + 1; continue; }
+      if (sliceHeightPx <= 0) { srcY = cutY + 1; continue; } // safety
+
       const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
+      sliceCanvas.width  = canvas.width;
       sliceCanvas.height = Math.ceil(sliceHeightPx);
       const ctx = sliceCanvas.getContext('2d');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
       ctx.drawImage(canvas, 0, srcY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
       const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
       const sliceHeightMM = sliceHeightPx * mmPerPx;
+
       if (srcY > 0) pdf.addPage();
       pdf.addImage(sliceData, 'JPEG', marginX, marginTop, usableWidthMM, sliceHeightMM);
+
       srcY = cutY;
     }
+
     pdf.save(fileName);
     showToast('PDF berhasil didownload!');
     restore();
@@ -4042,7 +4028,6 @@ function switchPage(pageName) {
     masuk: '📥 Barang Masuk',
     so: '🚚 Surat Jalan',
     inv: '💰 Invoice',
-    sttp: '🧾 Tanda Terima Dokumen',
     customers: '👥 Supplier/Outlet',
     settings: '⚙️ Pengaturan',
     profile: '👤 Profil',
@@ -4069,8 +4054,6 @@ function switchPage(pageName) {
     renderCustomers();
   } else if (pageName === 'settings') {
     loadSettings();
-  } else if (pageName === 'sttp') {
-    renderSttps();
   } else if (pageName === 'rekap') {
     initRekapPage();
   } else if (pageName === 'profile') {
@@ -4342,9 +4325,6 @@ function openSttpModal(editId) {
   sel.innerHTML = '<option value="">-- Pilih Customer/Penerima --</option>' +
     data.customers.map(c => `<option value="${c.id}">${c.name}${c.type === 'supplier' ? ' (Supplier)' : ' (Outlet)'}</option>`).join('');
 
-  // Clear manual rows always first
-  document.getElementById('sttp-manual-rows').innerHTML = '';
-
   if (editId) {
     const sttp = data.sttps.find(s => s.id === editId);
     if (sttp) {
@@ -4354,10 +4334,6 @@ function openSttpModal(editId) {
       document.getElementById('sttp-pt-name').value = sttp.ptName || '';
       document.getElementById('sttp-notes').value = sttp.notes || '';
       onSttpCustomerChange(Array.isArray(sttp.invNos) ? sttp.invNos : (sttp.invNo ? [sttp.invNo] : []));
-      // Restore manual rows
-      if (Array.isArray(sttp.manualRows)) {
-        sttp.manualRows.forEach(mr => addManualSttpRow(mr));
-      }
     }
   } else {
     document.getElementById('sttp-no').value = generateNo('TT');
@@ -4382,18 +4358,9 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
   box.innerHTML = allInvs.map(inv => {
     const total = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
-
-    // Ambil tanggal kirim dari Surat Jalan terkait, fallback ke tanggal invoice
-    const soByRef = inv.soId ? data.sos?.find(s => s.id === inv.soId) : null;
-    const soByNo  = inv.soNo ? data.sos?.find(s => s.no === inv.soNo) : null;
-    const so = soByRef || soByNo || null;
-    const tglKirim = so?.date
-      ? new Date(so.date).toLocaleDateString('id-ID')
-      : new Date(inv.date).toLocaleDateString('id-ID');
-
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.no}" ${checked} style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${tglKirim} — ${rupiah(total)}</span>
+      <span><strong>${inv.no}</strong> — ${new Date(inv.date).toLocaleDateString('id-ID')} — ${rupiah(total)}</span>
     </label>`;
   }).join('');
 }
@@ -4424,30 +4391,6 @@ function getSelectedSttpInvNos() {
   return Array.from(checkboxes).map(cb => cb.value);
 }
 
-function addManualSttpRow(data) {
-  const container = document.getElementById('sttp-manual-rows');
-  const row = document.createElement('div');
-  row.style = 'display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.2fr auto;gap:6px;align-items:center';
-  row.innerHTML = `
-    <input type="text" placeholder="Nama File / No Invoice" value="${(data&&data.name)||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);background:var(--card-bg);outline:none" class="mr-name">
-    <input type="date" value="${(data&&data.date)||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);background:var(--card-bg);outline:none" class="mr-date">
-    <input type="text" placeholder="Nominal (Rp)" value="${(data&&data.nominal)||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);background:var(--card-bg);outline:none" class="mr-nominal">
-    <input type="text" placeholder="No PO" value="${(data&&data.po)||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);background:var(--card-bg);outline:none" class="mr-po">
-    <button onclick="this.parentElement.remove()" style="background:var(--coral-light);color:var(--coral);border:1px solid #FFD8D4;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0">x</button>
-  `;
-  container.appendChild(row);
-}
-
-function getManualSttpRows() {
-  const rows = document.querySelectorAll('#sttp-manual-rows > div');
-  return Array.from(rows).map(r => ({
-    name: r.querySelector('.mr-name').value.trim(),
-    date: r.querySelector('.mr-date').value.trim(),
-    nominal: r.querySelector('.mr-nominal').value.trim(),
-    po: r.querySelector('.mr-po').value.trim()
-  })).filter(r => r.name || r.nominal || r.po);
-}
-
 function saveSttp() {
   const no = document.getElementById('sttp-no').value.trim();
   const date = document.getElementById('sttp-date').value;
@@ -4460,7 +4403,6 @@ function saveSttp() {
   if (!data.sttps) data.sttps = [];
   const editId = document.getElementById('sttp-edit-id').value;
   const invNos = getSelectedSttpInvNos();
-  const manualRows = getManualSttpRows();
   const sttp = {
     id: editId || ('sttp_' + Date.now()),
     no,
@@ -4468,7 +4410,6 @@ function saveSttp() {
     customer,
     ptName: document.getElementById('sttp-pt-name').value.trim(),
     invNos,
-    manualRows,
     notes: document.getElementById('sttp-notes').value.trim()
   };
   if (editId) {
@@ -4498,7 +4439,7 @@ function renderSttps() {
   if (!tbody) return;
   const list = data.sttps || [];
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada Tanda Terima Invoice</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada Tanda Terima Invoice</td></tr>';
     return;
   }
   tbody.innerHTML = [...list].reverse().map(s => {
@@ -4506,49 +4447,11 @@ function renderSttps() {
     const invList = Array.isArray(s.invNos) && s.invNos.length > 0 
       ? s.invNos.join(', ') 
       : (s.invNo || '-');
-
-    // Hitung total dari invoice yang dipilih + manual rows
-    let grandTotal = 0;
-    if (Array.isArray(s.invNos)) {
-      s.invNos.forEach(invNo => {
-        const inv = data.invs.find(i => i.no === invNo);
-        if (inv) grandTotal += inv.items.reduce((sum, i) => sum + i.qty * i.price, 0) - (inv.discount || 0);
-      });
-    }
-    if (Array.isArray(s.manualRows)) {
-      s.manualRows.forEach(mr => {
-        const val = parseInt((mr.nominal || '0').replace(/[^0-9]/g, '')) || 0;
-        grandTotal += val;
-      });
-    }
-
-    // Jatuh tempo = tanggal kirim + 7 hari
-    const kirimDate = new Date(s.date);
-    const jatuDate = new Date(kirimDate);
-    jatuDate.setDate(jatuDate.getDate() + 7);
-    const jatuStr = jatuDate.toLocaleDateString('id-ID');
-
-    // Cek apakah hari ini = hari jatuh tempo
-    const todayStr = new Date().toDateString();
-    const isJatuhTempo = jatuDate.toDateString() === todayStr;
-    const isOverdue = jatuDate < new Date() && jatuDate.toDateString() !== todayStr;
-    const rowStyle = isJatuhTempo ? 'background:rgba(255,59,48,0.08);border-left:4px solid #FF3B30;' 
-                   : isOverdue ? 'background:rgba(255,149,0,0.08);border-left:4px solid #FF9500;' 
-                   : '';
-    const jatuCellStyle = isJatuhTempo ? 'font-size:12px;font-weight:700;color:#FF3B30;' 
-                        : isOverdue ? 'font-size:12px;font-weight:700;color:#FF9500;'
-                        : 'font-size:12px;color:var(--coral)';
-    const jatuLabel = isJatuhTempo ? '⚠️ ' + jatuStr + ' — HARI INI!' 
-                    : isOverdue ? '🔴 ' + jatuStr + ' — TERLAMBAT'
-                    : jatuStr;
-
-    return `<tr style="${rowStyle}">
+    return `<tr>
       <td><strong>${s.no}</strong></td>
       <td>${new Date(s.date).toLocaleDateString('id-ID')}</td>
       <td><strong>${cust?.name || '-'}</strong></td>
       <td style="font-size:12px">${invList}</td>
-      <td style="font-size:12px;font-weight:600;color:var(--purple)">${rupiah(grandTotal)}</td>
-      <td style="${jatuCellStyle}">${jatuLabel}</td>
       <td style="font-size:12px;color:#666">${s.notes || '-'}</td>
       <td>
         <div class="action-btns">
@@ -4569,14 +4472,12 @@ function previewSttpFromModal() {
     return;
   }
   const invNos = getSelectedSttpInvNos();
-  const manualRows = getManualSttpRows();
   const sttp = {
     no: document.getElementById('sttp-no').value || generateNo('STTP'),
     date: document.getElementById('sttp-date').value,
     customer: custId,
     ptName: document.getElementById('sttp-pt-name').value.trim(),
     invNos,
-    manualRows,
     notes: document.getElementById('sttp-notes').value
   };
   currentSttpData = sttp;
@@ -4603,70 +4504,38 @@ function generateSttpPreview(sttp) {
   // Cari data dokumen/invoice referensi
   let invRefHtml = '';
   let grandTotal = 0;
-  const hasAutoRows = Array.isArray(sttp.invNos) && sttp.invNos.length > 0;
-  const hasManualRows = Array.isArray(sttp.manualRows) && sttp.manualRows.length > 0;
-  if (hasAutoRows || hasManualRows) {
-    // Build all rows: auto rows from database + manual rows
-    let allRowsHtml = '';
-    let rowCount = 0;
-    if (hasAutoRows) {
-      sttp.invNos.forEach((invNo, idx) => {
-        const inv = data.invs.find(i => i.no === invNo);
-        const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
-
-        // Cari Surat Jalan terkait invoice ini
-        const soByRef = inv?.soId ? data.sos?.find(s => s.id === inv.soId) : null;
-        const soByNo  = inv?.soNo ? data.sos?.find(s => s.no === inv.soNo) : null;
-        const so = soByRef || soByNo || null;
-
-        // Tanggal Kirim → ambil dari SJ, fallback ke tanggal invoice
-        const tglKirim = so?.date
-          ? new Date(so.date).toLocaleDateString('id-ID')
-          : (inv?.date ? new Date(inv.date).toLocaleDateString('id-ID') : '-');
-
-        // No PO → dari SJ.poNo, lalu cari di PO table, fallback inv.poNo
-        const poRecord = so?.poNo ? data.pos?.find(p => p.no === so.poNo) : null;
-        const noPO = poRecord?.no || so?.poNo || inv?.poNo || '-';
-
-        grandTotal += invTotal;
-        rowCount++;
-        allRowsHtml += `<tr style="border-bottom:1px solid #ddd">
-          <td style="padding:8px 0;color:#1A1A2E;font-weight:600">${invNo}</td>
-          <td style="padding:8px 0;color:#666">${tglKirim}</td>
-          <td style="padding:8px 0;color:#666">${noPO}</td>
-          <td style="text-align:right;padding:8px 0;color:#1A1A2E;font-weight:600">${rupiah(invTotal)}</td>
-        </tr>`;
-      });
-    }
-    if (hasManualRows) {
-      sttp.manualRows.forEach((mr, idx) => {
-        const nominalRaw = mr.nominal ? mr.nominal.replace(/[^0-9]/g, '') : '0';
-        const nominalVal = parseInt(nominalRaw) || 0;
-        grandTotal += nominalVal;
-        rowCount++;
-        const mrDateStr = mr.date ? new Date(mr.date).toLocaleDateString('id-ID') : '-';
-        allRowsHtml += `<tr style="border-bottom:1px solid #ddd">
-          <td style="padding:8px 0;color:#1A1A2E;font-weight:600">${mr.name || '-'}</td>
-          <td style="padding:8px 0;color:#666">${mrDateStr}</td>
-          <td style="padding:8px 0;color:#666">${mr.po || '-'}</td>
-          <td style="text-align:right;padding:8px 0;color:#1A1A2E;font-weight:600">${nominalVal ? rupiah(nominalVal) : (mr.nominal || '-')}</td>
-        </tr>`;
-      });
-    }
+  if (Array.isArray(sttp.invNos) && sttp.invNos.length > 0) {
     invRefHtml = `
       <div style="margin-bottom:12px">
         <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.4px">Dokumen Invoice yang Dikirim</p>
-        <div style="border:1px solid #1E5A96;border-radius:8px;padding:12px">
+        <div style="background:#f5f5f5;border-radius:8px;padding:12px">
           <table style="width:100%;border-collapse:collapse;font-size:11px">
             <thead style="border-bottom:2px solid #1E5A96">
               <tr>
-                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">No Invoice</th>
-                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Tgl Kirim</th>
-                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">No PO</th>
+                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Invoice</th>
+                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Tanggal</th>
+                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">PO</th>
                 <th style="text-align:right;padding:6px 0;color:#1E5A96;font-weight:700">Total</th>
               </tr>
             </thead>
-            <tbody>${allRowsHtml}</tbody>
+            <tbody>
+            ${sttp.invNos.map((invNo, idx) => {
+              const inv = data.invs.find(i => i.no === invNo);
+              const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
+              const so = inv && inv.soRefId ? data.sos?.find(s => s.id === inv.soRefId) : null;
+              const poNo = so?.no || inv?.soNo || '-';
+              const invDate = inv?.date ? new Date(inv.date).toLocaleDateString('id-ID') : '-';
+              grandTotal += invTotal;
+              return `
+                <tr style="${idx < sttp.invNos.length - 1 ? 'border-bottom:1px solid #ddd' : 'border-bottom:2px solid #1E5A96'}">
+                  <td style="padding:8px 0;color:#1A1A2E;font-weight:600">${invNo}</td>
+                  <td style="padding:8px 0;color:#666">${invDate}</td>
+                  <td style="padding:8px 0;color:#666">${poNo}</td>
+                  <td style="text-align:right;padding:8px 0;color:#1A1A2E;font-weight:600">${rupiah(invTotal)}</td>
+                </tr>
+              `;
+            }).join('')}
+            </tbody>
             <tfoot style="border-top:2px solid #1E5A96;font-weight:700">
               <tr>
                 <td colspan="3" style="padding:12px 0;color:#1E5A96">GRAND TOTAL</td>
@@ -4683,61 +4552,60 @@ function generateSttpPreview(sttp) {
   pdfContent.innerHTML = `
     <div class="pdf-content">
       <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #1E5A96;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #000000;gap:16px">
         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
           ${logo
-            ? `<img src="${logo}" style="width:72px;height:72px;border-radius:8px;object-fit:cover;flex-shrink:0">`
-            : `<div style="width:72px;height:72px;border:2px solid #1E5A96;background:#fff;display:flex;align-items:center;justify-content:center;color:#1E5A96;font-weight:700;font-size:22px;flex-shrink:0">IJ</div>`
+            ? `<img src="${logo}" style="width:56px;height:56px;border-radius:4px;object-fit:cover;flex-shrink:0">`
+            : `<div style="width:56px;height:56px;border-radius:4px;background:#ffffff;display:flex;align-items:center;justify-content:center;color:#000000;font-weight:700;font-size:18px;flex-shrink:0;border:2px solid #000000">IJ</div>`
           }
           <div style="min-width:0">
-            <div style="font-size:17px;font-weight:700;color:#1A1A2E;word-break:break-word">${profile.name}</div>
-            ${profile.address ? `<div style="font-size:11px;color:#8A8A9A;margin-top:2px;word-break:break-word">${profile.address}</div>` : ''}
-            ${profile.phone ? `<div style="font-size:11px;color:#8A8A9A">Telp: ${profile.phone}</div>` : ''}
+            <div style="font-size:18px;font-weight:700;color:#000000;word-break:break-word">${profile.name}</div>
+            ${profile.address ? `<div style="font-size:12px;color:#000000;margin-top:2px;word-break:break-word">${profile.address}</div>` : ''}
+            ${profile.phone ? `<div style="font-size:12px;color:#000000">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <h1 style="color:#1E5A96;font-size:20px;font-weight:800;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px">Tanda Terima</h1>
-          <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${sttp.no}</p>
-          <p style="margin:6px 0 0;font-size:11px;color:#8A8A9A">TANGGAL PENGIRIMAN</p>
-          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
+          <h1 style="color:#000000;font-size:24px;font-weight:800;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px">TANDA TERIMA</h1>
+          <p style="margin:0;font-size:14px;font-weight:700;color:#000000">${sttp.no}</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#000000;font-weight:bold">TANGGAL PENGIRIMAN</p>
+          <p style="margin:2px 0;font-weight:700;font-size:13px;color:#000000">${new Date(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
         </div>
       </div>
 
       <!-- UNTUK / KEPADA & DOKUMEN DIKIRIM -->
       <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px">
         <div>
-          <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.4px">Untuk Yth (Penerima)</p>
-          ${sttp.ptName ? `<strong style="font-size:15px;color:#1A1A2E;display:block;margin-bottom:2px">${sttp.ptName}</strong>` : ''}
-          <strong style="font-size:14px;color:#1A1A2E;display:block;margin-bottom:4px">${custName}</strong>
-          ${custAddr ? `<p style="font-size:12px;color:#666;margin:2px 0">📍 ${custAddr}</p>` : ''}
-          ${custPhone ? `<p style="font-size:12px;color:#666;margin:2px 0">📞 ${custPhone}</p>` : ''}
+          <p style="font-size:12px;color:#000000;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.4px;font-weight:bold">UNTUK YTH (PENERIMA)</p>
+          ${sttp.ptName ? `<strong style="font-size:16px;color:#000000;display:block;margin-bottom:2px">${sttp.ptName}</strong>` : ''}
+          <strong style="font-size:15px;color:#000000;display:block;margin-bottom:4px">${custName}</strong>
+          ${custAddr ? `<p style="font-size:12px;color:#000000;margin:2px 0">📍 ${custAddr}</p>` : ''}
+          ${custPhone ? `<p style="font-size:12px;color:#000000;margin:2px 0">📞 ${custPhone}</p>` : ''}
         </div>
         ${invRefHtml}
       </div>
 
       <!-- CATATAN -->
       ${sttp.notes ? `
-      <div style="margin:16px 0;padding:14px 16px;border:1px solid #1E5A96;background:#fff">
-        <div style="font-size:11px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
-        <div style="font-size:13px;color:#555">${sttp.notes}</div>
+      <div style="margin:16px 0;padding:14px 16px;border:2px solid #000000;border-radius:0;background:white">
+        <div style="font-size:12px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">CATATAN</div>
+        <div style="font-size:13px;color:#000000;font-weight:bold">${sttp.notes}</div>
       </div>
       ` : ''}
 
       <!-- TANDA TANGAN -->
-      <div style="flex:1 1 auto;min-height:20px"></div>
-      <div style="display:flex;justify-content:space-between;margin-top:50px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
+      <div style="display:flex;justify-content:space-between;margin-top:auto;padding-top:40px;border-top:2px solid #000000;font-size:13px;color:#000000;font-weight:bold">
         <div style="text-align:center">
-          <div style="font-size:11px;color:#888;margin-bottom:48px">Pengirim,</div>
-          <div style="border-top:1px solid #333;width:180px;padding-top:6px">${profile.name}</div>
+          <div style="font-size:12px;color:#000000;margin-bottom:60px;font-weight:bold">PENGIRIM,</div>
+          <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${profile.name}</div>
         </div>
         <div style="text-align:center">
-          <div style="font-size:11px;color:#888;margin-bottom:48px">Penerima,</div>
-          <div style="border-top:1px solid #333;width:180px;padding-top:6px">${custName}</div>
+          <div style="font-size:12px;color:#000000;margin-bottom:60px;font-weight:bold">PENERIMA,</div>
+          <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${custName}</div>
         </div>
       </div>
 
       <!-- FOOTER -->
-      <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #eee;font-size:10px;color:#aaa">
+      <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:2px solid #000000;font-size:11px;color:#000000;font-weight:bold">
         Dokumen ini merupakan bukti penerimaan dokumen invoice dari ${profile.name}
       </div>
     </div>
@@ -4900,7 +4768,6 @@ function startApp() {
   renderSOs();
   renderInvs();
   renderMasuk();
-  renderSttps();
   
   document.getElementById('po-date').value = today();
   document.getElementById('so-date').value = today();
@@ -4925,68 +4792,6 @@ function startApp() {
   });
   
   loadSettings();
-  checkJatuhTempoWarning();
-}
-
-function checkJatuhTempoWarning() {
-  const data = loadData();
-  const sttps = data.sttps || [];
-  const todayStr = new Date().toDateString();
-
-  const warnings = sttps.filter(s => {
-    const jatuDate = new Date(s.date);
-    jatuDate.setDate(jatuDate.getDate() + 7);
-    return jatuDate.toDateString() === todayStr;
-  });
-
-  if (warnings.length === 0) return;
-
-  const data2 = loadData();
-  const listHtml = warnings.map(s => {
-    const cust = data2.customers.find(c => c.id == s.customer);
-    const invList = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos.join(', ') : (s.invNo || '-');
-    let total = 0;
-    if (Array.isArray(s.invNos)) s.invNos.forEach(no => {
-      const inv = data2.invs?.find(i => i.no === no);
-      if (inv) total += inv.items.reduce((sum, i) => sum + i.qty * i.price, 0) - (inv.discount || 0);
-    });
-    if (Array.isArray(s.manualRows)) s.manualRows.forEach(mr => {
-      total += parseInt((mr.nominal || '0').replace(/[^0-9]/g, '')) || 0;
-    });
-    return `<div style="padding:10px 12px;background:#fff5f5;border:1px solid #FFD0CE;border-radius:8px;margin-bottom:8px">
-      <div style="font-weight:700;color:#1A1A2E">${s.no} — <span style="color:#FF3B30">${cust?.name || '-'}</span></div>
-      <div style="font-size:12px;color:#666;margin-top:2px">${invList}</div>
-      <div style="font-size:13px;font-weight:600;color:#FF3B30;margin-top:4px">Total: ${rupiah(total)}</div>
-    </div>`;
-  }).join('');
-
-  // Buat modal warning
-  const overlay = document.createElement('div');
-  overlay.id = 'jatuTempoWarningOverlay';
-  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.innerHTML = `
-    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-        <div style="font-size:32px">⚠️</div>
-        <div>
-          <div style="font-size:17px;font-weight:800;color:#FF3B30">Jatuh Tempo Hari Ini!</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${warnings.length} Tanda Terima jatuh tempo hari ini</div>
-        </div>
-      </div>
-      <div style="max-height:300px;overflow-y:auto;margin-bottom:20px">${listHtml}</div>
-      <div style="display:flex;gap:10px">
-        <button onclick="document.getElementById('jatuTempoWarningOverlay').remove();switchPageDirect('sttp')" 
-          style="flex:1;padding:12px;background:#FF3B30;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px">
-          Lihat Tanda Terima
-        </button>
-        <button onclick="document.getElementById('jatuTempoWarningOverlay').remove()" 
-          style="padding:12px 20px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;color:var(--text)">
-          Tutup
-        </button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
