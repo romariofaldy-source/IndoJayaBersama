@@ -4973,7 +4973,7 @@ function printDoc(containerId) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Cetak Dokumen</title>
+  <title>${dotMatrixPrintTitleSafe(containerId)}</title>
   <style>${DOT_MATRIX_CSS}</style>
 </head>
 <body>
@@ -4981,12 +4981,50 @@ function printDoc(containerId) {
   <script>
     window.onload = function() {
       window.print();
-      setTimeout(function(){ window.close(); }, 1800);
+    };
+    // Tutup window otomatis HANYA setelah dialog print/save selesai (bukan timer tetap),
+    // jadi user punya waktu cukup buat pilih "Save as PDF" tanpa keburu ke-close.
+    window.onafterprint = function() {
+      window.close();
     };
   <\/script>
 </body>
 </html>`);
   printWin.document.close();
+}
+
+// Samakan format nama file dot matrix dengan Download PDF biasa — dipakai untuk
+// nama file Download maupun judul window Cetak (jadi default nama kalau "Save as PDF")
+function dotMatrixPrintTitleSafe(containerId) {
+  const typeLabels = { po: 'PO-Outlet', so: 'Surat-Jalan', inv: 'Invoice' };
+  if (containerId === 'pdfContent') {
+    const type = pdfDocData.type;
+    const d = pdfDocData.doc;
+    if (!d) return `DotMatrix-${today()}`;
+    const data = loadData();
+    let partyName = 'Outlet';
+    if (type === 'po') {
+      const supplier = data.customers.find(c => c.id == d.supplier);
+      partyName = supplier?.name || 'Outlet';
+    } else {
+      const customer = data.customers.find(c => c.id == d.customer);
+      partyName = customer?.name || 'Outlet';
+    }
+    const safeParty = partyName.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+    const dt = new Date(d.date);
+    const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+    if (type === 'so' || type === 'inv') return `${d.no}-IJB-${safeParty}-${tgl}`;
+    return `${typeLabels[type]}-${d.no}`;
+  } else {
+    const sttp = currentSttpData;
+    if (!sttp) return `DotMatrix-${today()}`;
+    const data = loadData();
+    const cust = data.customers.find(c => c.id == sttp.customer);
+    const safeParty = (cust?.name || 'PT').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+    const dt = new Date(sttp.date);
+    const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+    return `${sttp.no}-${safeParty}-${tgl}`;
+  }
 }
 
 // ── DOWNLOAD PDF versi dot matrix ──
@@ -5004,38 +5042,7 @@ function downloadDotMatrixPDF(containerId) {
   if (btn) { btn.innerHTML = '⏳ Proses...'; btn.disabled = true; }
 
   // Samakan format nama file dengan Download PDF biasa
-  const buildDotMatrixFileName = () => {
-    const typeLabels = { po: 'PO-Outlet', so: 'Surat-Jalan', inv: 'Invoice' };
-    if (containerId === 'pdfContent') {
-      const type = pdfDocData.type;
-      const d = pdfDocData.doc;
-      if (!d) return `DotMatrix-${today()}.pdf`;
-      const data = loadData();
-      let partyName = 'Outlet';
-      if (type === 'po') {
-        const supplier = data.customers.find(c => c.id == d.supplier);
-        partyName = supplier?.name || 'Outlet';
-      } else {
-        const customer = data.customers.find(c => c.id == d.customer);
-        partyName = customer?.name || 'Outlet';
-      }
-      const safeParty = partyName.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
-      const dt = new Date(d.date);
-      const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
-      if (type === 'so' || type === 'inv') return `${d.no}-IJB-${safeParty}-${tgl}.pdf`;
-      return `${typeLabels[type]}-${d.no}.pdf`;
-    } else {
-      const sttp = currentSttpData;
-      if (!sttp) return `DotMatrix-${today()}.pdf`;
-      const data = loadData();
-      const cust = data.customers.find(c => c.id == sttp.customer);
-      const safeParty = (cust?.name || 'PT').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
-      const dt = new Date(sttp.date);
-      const tgl = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
-      return `${sttp.no}-${safeParty}-${tgl}.pdf`;
-    }
-  };
-  const dotMatrixFileName = buildDotMatrixFileName();
+  const dotMatrixFileName = dotMatrixPrintTitleSafe(containerId) + '.pdf';
 
   const CAPTURE_WIDTH = 794;
   const wrapper = document.createElement('div');
