@@ -1187,6 +1187,7 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pdfModal')">Tutup</button>
       <button class="btn btn-success" onclick="printDoc('pdfContent')">🖨️ Cetak (Dot Matrix)</button>
+      <button class="btn btn-pdf" onclick="downloadDotMatrixPDF('pdfContent')">⬇️ PDF Dot Matrix</button>
       <button class="btn btn-primary" onclick="downloadPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -1277,6 +1278,7 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('sttpPdfModal')">Tutup</button>
       <button class="btn btn-success" onclick="printDoc('sttpPdfContent')">🖨️ Cetak (Dot Matrix)</button>
+      <button class="btn btn-pdf" onclick="downloadDotMatrixPDF('sttpPdfContent')">⬇️ PDF Dot Matrix</button>
       <button class="btn btn-primary" onclick="downloadSttpPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -4703,150 +4705,325 @@ function downloadSttpPDF() {
     });
 }
 
-// ===== CETAK DOT MATRIX (Epson LX-310) =====
-function printDoc(containerId) {
-  const contentEl = document.querySelector('#' + containerId + ' .pdf-content');
-  if (!contentEl) { showToast('Tidak ada dokumen untuk dicetak. Buka Preview terlebih dahulu.'); return; }
+// ===== CETAK & DOWNLOAD DOT MATRIX (Epson LX-310) =====
 
-  const printWin = window.open('', '_blank', 'width=900,height=700');
-  if (!printWin) { showToast('Popup diblokir browser. Izinkan popup untuk mencetak.'); return; }
+// Fungsi helper: bersihkan clone untuk dot matrix
+function buildDotMatrixClone(containerId) {
+  const contentEl = document.querySelector('#' + containerId + ' .pdf-content');
+  if (!contentEl) return null;
 
   const clone = contentEl.cloneNode(true);
 
-  // Strip SEMUA inline style background & color dari setiap elemen
+  // ── 1. Strip SEMUA inline style yang bisa bikin teks ga kecetak ──
   clone.querySelectorAll('*').forEach(el => {
-    el.style.removeProperty('background');
-    el.style.removeProperty('background-color');
-    el.style.removeProperty('box-shadow');
-    el.style.removeProperty('text-shadow');
-    el.style.removeProperty('border-radius');
-    el.style.removeProperty('color');
-    // Buang juga style attribute jika hanya berisi color/bg
-    // Paksa font monospace
+    // Buang semua property berbahaya via removeProperty
+    const props = [
+      'background','background-color','background-image',
+      'box-shadow','text-shadow','border-radius',
+      'color','opacity','filter','mix-blend-mode'
+    ];
+    props.forEach(p => el.style.removeProperty(p));
+    // Set font monospace
     el.style.fontFamily = "'Courier New', Courier, monospace";
+    el.style.color = '#000000';
   });
 
-  // Paksa th: tanpa background gelap
+  // ── 2. Header tabel: garis atas-bawah tebal, NO fill hitam ──
   clone.querySelectorAll('th').forEach(th => {
-    th.style.background = 'transparent';
-    th.style.backgroundColor = 'transparent';
-    th.style.color = '#000';
-    th.style.fontWeight = 'bold';
-    th.style.borderTop = '2px solid #000';
-    th.style.borderBottom = '2px solid #000';
+    th.style.cssText = [
+      'background:transparent!important',
+      'background-color:transparent!important',
+      'color:#000!important',
+      'font-weight:bold!important',
+      'font-size:9pt!important',
+      'padding:4px 6px!important',
+      'text-align:left!important',
+      'border-top:2px solid #000!important',
+      'border-bottom:2px solid #000!important',
+      'border-left:1px solid #000!important',
+      'border-right:1px solid #000!important',
+      'text-transform:uppercase!important',
+      'font-family:Courier New,Courier,monospace!important'
+    ].join(';');
   });
 
-  // Paksa td: bersih
+  // ── 3. Body tabel ──
   clone.querySelectorAll('td').forEach(td => {
-    td.style.background = 'transparent';
-    td.style.backgroundColor = 'transparent';
-    td.style.color = '#000';
+    td.style.cssText = [
+      'background:transparent!important',
+      'background-color:transparent!important',
+      'color:#000!important',
+      'border:1px solid #000!important',
+      'padding:3px 6px!important',
+      'font-size:9.5pt!important',
+      'vertical-align:top!important',
+      'font-family:Courier New,Courier,monospace!important'
+    ].join(';');
   });
 
-  // Perbaiki doc-header: kolom kanan max-width agar tidak terlalu ke kanan
+  // ── 4. doc-header: fix layout, alamat tidak lari ke kanan ──
+  // Cari semua div langsung di bawah .doc-header
   const docHeader = clone.querySelector('.doc-header');
   if (docHeader) {
-    docHeader.style.display = 'flex';
-    docHeader.style.justifyContent = 'space-between';
-    docHeader.style.gap = '12px';
-    docHeader.style.marginBottom = '12px';
-    docHeader.style.paddingBottom = '10px';
-    docHeader.style.borderBottom = '2px solid #000';
-    docHeader.style.background = 'transparent';
-    // Batasi lebar kolom kanan
-    const allBlocks = docHeader.querySelectorAll(':scope > div');
-    allBlocks.forEach((blk, i) => {
-      if (i === allBlocks.length - 1) {
-        blk.style.maxWidth = '180px';
-        blk.style.minWidth = '140px';
-        blk.style.textAlign = 'right';
+    docHeader.style.cssText = [
+      'display:grid!important',
+      'grid-template-columns:1fr auto!important',
+      'gap:10px!important',
+      'margin-bottom:12px!important',
+      'padding-bottom:10px!important',
+      'border-bottom:2px solid #000!important',
+      'background:transparent!important',
+      'width:100%!important'
+    ].join(';');
+
+    const blocks = docHeader.querySelectorAll(':scope > div, :scope > .block');
+    blocks.forEach((blk, i) => {
+      if (i === 0) {
+        // Kolom kiri: info perusahaan + alamat penerima
+        blk.style.cssText = 'width:100%!important;max-width:none!important;text-align:left!important;word-break:break-word!important;overflow-wrap:break-word!important';
+      } else {
+        // Kolom kanan: no doc + tanggal — compact
+        blk.style.cssText = 'min-width:130px!important;max-width:150px!important;text-align:right!important;white-space:nowrap!important;flex-shrink:0!important';
       }
     });
   }
 
-  const printContent = clone.outerHTML;
+  // ── 5. Bagian "Kepada" / alamat penerima — pastikan tidak overflow ke kanan ──
+  clone.querySelectorAll('div, p, span').forEach(el => {
+    const txt = el.textContent || '';
+    // Kalau mengandung "KEPADA" atau "Kepada" reset style supaya ga lari kanan
+    if (txt.includes('KEPADA') || txt.includes('Kepada') || txt.includes('kepada')) {
+      el.style.maxWidth = '100%';
+      el.style.wordBreak = 'break-word';
+      el.style.overflowWrap = 'break-word';
+    }
+  });
+
+  // ── 6. Tanda tangan bagian bawah: posisi rapi ──
+  // Cari div yang berisi "Pengirim" dan "Penerima"
+  clone.querySelectorAll('div').forEach(el => {
+    const txt = el.textContent || '';
+    if ((txt.includes('Pengirim') || txt.includes('Penerima') || txt.includes('pengirim') || txt.includes('penerima')) && el.children.length >= 2) {
+      el.style.cssText = [
+        'display:flex!important',
+        'justify-content:space-between!important',
+        'margin-top:30px!important',
+        'padding-top:10px!important',
+        'border-top:1px solid #000!important',
+        'width:100%!important',
+        'background:transparent!important'
+      ].join(';');
+      Array.from(el.children).forEach(child => {
+        child.style.cssText = 'text-align:center!important;min-width:150px!important;background:transparent!important;color:#000!important';
+      });
+    }
+  });
+
+  // ── 7. Semua border inline: force solid hitam ──
+  clone.querySelectorAll('[style*="border"]').forEach(el => {
+    // Ganti border berwarna jadi hitam
+    if (el.style.borderColor && el.style.borderColor !== 'transparent') {
+      el.style.borderColor = '#000';
+    }
+    el.style.borderStyle = el.style.borderStyle || 'solid';
+  });
+
+  // ── 8. Logo/gambar: kecilkan ──
+  clone.querySelectorAll('img').forEach(img => {
+    img.style.maxWidth = '60px';
+    img.style.maxHeight = '60px';
+    img.style.height = 'auto';
+  });
+
+  return clone;
+}
+
+// ── CSS dot matrix yang dipakai baik print maupun PDF ──
+const DOT_MATRIX_CSS = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
+    color: #000;
+    background: #fff;
+    margin: 0; padding: 0;
+  }
+  /* OVERRIDE PAKSA — semua elemen: hitam di putih */
+  body * {
+    color: #000 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-radius: 0 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+  .pdf-content {
+    width: 100% !important;
+    padding: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  /* TABEL */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9.5pt !important;
+    margin: 8px 0 !important;
+    table-layout: fixed !important;
+  }
+  th {
+    padding: 4px 6px !important;
+    font-weight: bold !important;
+    font-size: 9pt !important;
+    text-align: left !important;
+    border-top: 2px solid #000 !important;
+    border-bottom: 2px solid #000 !important;
+    border-left: 1px solid #000 !important;
+    border-right: 1px solid #000 !important;
+    text-transform: uppercase !important;
+    word-break: break-word !important;
+  }
+  td {
+    padding: 3px 6px !important;
+    border: 1px solid #000 !important;
+    font-size: 9.5pt !important;
+    vertical-align: top !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  /* DOC HEADER: grid 2 kolom, kiri lebar kanan compact */
+  .doc-header {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 2px solid #000 !important;
+    width: 100% !important;
+  }
+  .doc-header > * {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  .doc-header > *:last-child {
+    min-width: 130px !important;
+    max-width: 150px !important;
+    text-align: right !important;
+    white-space: nowrap !important;
+  }
+  /* TANDA TANGAN */
+  img { max-width: 60px !important; max-height: 60px !important; height: auto !important; }
+  /* Semua text bisa wrap */
+  p, span, div, strong, b { word-break: break-word !important; overflow-wrap: break-word !important; }
+  @media print {
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    body { margin: 0; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+  }
+`;
+
+// ── CETAK ke printer dot matrix ──
+function printDoc(containerId) {
+  const clone = buildDotMatrixClone(containerId);
+  if (!clone) { showToast('Tidak ada dokumen. Buka Preview terlebih dahulu.'); return; }
+
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) { showToast('Popup diblokir browser. Izinkan popup untuk mencetak.'); return; }
 
   printWin.document.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Cetak Dokumen</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 10.5pt;
-      color: #000;
-      background: #fff;
-    }
-    /* Paksa semua elemen: hitam di putih, no bg */
-    * {
-      color: #000 !important;
-      background: transparent !important;
-      background-color: transparent !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-      border-radius: 0 !important;
-      font-family: 'Courier New', Courier, monospace !important;
-    }
-    .pdf-content {
-      width: 100% !important;
-      padding: 6mm 8mm !important;
-      transform: none !important;
-    }
-    /* TABEL */
-    table {
-      width: 100% !important;
-      border-collapse: collapse !important;
-      font-size: 10pt !important;
-      margin: 8px 0 !important;
-    }
-    th {
-      padding: 5px 7px !important;
-      font-size: 9.5pt !important;
-      font-weight: bold !important;
-      text-align: left !important;
-      border-top: 2px solid #000 !important;
-      border-bottom: 2px solid #000 !important;
-      border-left: 1px solid #000 !important;
-      border-right: 1px solid #000 !important;
-      text-transform: uppercase !important;
-    }
-    td {
-      padding: 4px 7px !important;
-      border: 1px solid #000 !important;
-      font-size: 10pt !important;
-      vertical-align: top !important;
-    }
-    /* Doc header */
-    .doc-header {
-      display: flex !important;
-      justify-content: space-between !important;
-      gap: 12px !important;
-      margin-bottom: 12px !important;
-      padding-bottom: 10px !important;
-      border-bottom: 2px solid #000 !important;
-    }
-    /* Semua border inline: jadikan solid hitam */
-    [style*="border"] { border-color: #000 !important; border-style: solid !important; }
-    img { max-width: 65px !important; max-height: 65px !important; height: auto !important; }
-    @media print {
-      @page { size: A4 portrait; margin: 8mm 10mm; }
-      body { margin: 0; }
-      .pdf-content { padding: 0 !important; }
-      thead { display: table-header-group; }
-      tr { page-break-inside: avoid; }
-    }
-  </style>
+  <title>Cetak Dokumen - Dot Matrix</title>
+  <style>${DOT_MATRIX_CSS}</style>
 </head>
 <body>
-  ${printContent}
+  <div class="pdf-content">${clone.innerHTML}</div>
   <script>
-    window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 1500); };
+    window.onload = function() {
+      window.print();
+      setTimeout(function(){ window.close(); }, 1800);
+    };
   <\/script>
 </body>
 </html>`);
   printWin.document.close();
+}
+
+// ── DOWNLOAD PDF versi dot matrix (hitam putih, layout presisi) ──
+function downloadDotMatrixPDF(containerId) {
+  const clone = buildDotMatrixClone(containerId);
+  if (!clone) { showToast('Tidak ada dokumen. Buka Preview terlebih dahulu.'); return; }
+  if (typeof window.html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+    showToast('Library PDF belum siap. Periksa koneksi internet.');
+    return;
+  }
+
+  showToast('Membuat PDF Dot Matrix...');
+
+  // Render clone di DOM tersembunyi
+  const CAPTURE_WIDTH = 794;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `position:fixed;top:0;left:-99999px;width:${CAPTURE_WIDTH}px;background:#fff;padding:20px;box-sizing:border-box`;
+
+  // Inject CSS dot matrix ke wrapper via style tag
+  const styleEl = document.createElement('style');
+  styleEl.textContent = DOT_MATRIX_CSS;
+  wrapper.appendChild(styleEl);
+
+  const inner = document.createElement('div');
+  inner.className = 'pdf-content';
+  inner.innerHTML = clone.innerHTML;
+  inner.style.cssText = `width:${CAPTURE_WIDTH - 40}px;background:#fff`;
+  wrapper.appendChild(inner);
+  document.body.appendChild(wrapper);
+  void inner.offsetHeight;
+
+  html2canvas(inner, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    windowWidth: CAPTURE_WIDTH
+  }).then(canvas => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const mx = 12, mt = 12, mb = 12;
+    const usableW = pageW - mx * 2;
+    const usableH = pageH - mt - mb;
+    const mmPerPx = usableW / canvas.width;
+    const pageHPx = usableH / mmPerPx;
+
+    let srcY = 0;
+    while (srcY < canvas.height) {
+      const cutY = Math.min(srcY + pageHPx, canvas.height);
+      const sliceH = cutY - srcY;
+      if (sliceH <= 0) break;
+      const sc = document.createElement('canvas');
+      sc.width = canvas.width;
+      sc.height = Math.ceil(sliceH);
+      const ctx = sc.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, sc.width, sc.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      if (srcY > 0) pdf.addPage();
+      pdf.addImage(sc.toDataURL('image/jpeg', 0.98), 'JPEG', mx, mt, usableW, sliceH * mmPerPx);
+      srcY = cutY;
+    }
+
+    // Nama file
+    const ts = new Date();
+    const tgl = `${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}`;
+    pdf.save(`DotMatrix-${tgl}.pdf`);
+    showToast('PDF Dot Matrix berhasil didownload!');
+    wrapper.remove();
+  }).catch(err => {
+    showToast('Gagal buat PDF: ' + err.message);
+    wrapper.remove();
+  });
 }
 
 // ===== INIT =====
