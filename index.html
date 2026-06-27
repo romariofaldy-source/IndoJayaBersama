@@ -4707,224 +4707,285 @@ function downloadSttpPDF() {
 
 // ===== CETAK & DOWNLOAD DOT MATRIX (Epson LX-310) =====
 
-// Fungsi helper: bersihkan clone untuk dot matrix
+const DOT_MATRIX_CSS = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* ── RESET: buang semua warna / shadow ── */
+  body * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .pdf-content {
+    width: 100% !important;
+    padding: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* ── HEADER ATAS: logo kiri, judul kanan ── */
+  /* Grid 2 kolom persis seperti preview */
+  .pdf-content > div:first-child,
+  .doc-header {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 14px !important;
+    border-bottom: 2px solid #000 !important;
+    background: transparent !important;
+    align-items: start !important;
+  }
+
+  /* Kolom kanan header: rata kanan */
+  .doc-header > *:last-child,
+  .doc-header > div:last-child {
+    text-align: right !important;
+  }
+
+  /* ── JUDUL DOKUMEN (Surat Jalan, Invoice, dll) ── */
+  /* Biru di preview → hitam tebal di dot matrix */
+  h1, .doc-title {
+    font-size: 22pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* ── TABEL ITEM ── */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9.5pt !important;
+    margin: 12px 0 !important;
+    table-layout: auto !important;
+  }
+
+  /* Header tabel: background hitam + teks putih (sama seperti preview navy) */
+  thead tr,
+  th {
+    background: #000 !important;
+    background-color: #000 !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  th {
+    padding: 8px 10px !important;
+    font-size: 9pt !important;
+    font-weight: bold !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    border: 1px solid #000 !important;
+  }
+  th:last-child { text-align: right !important; }
+  th:nth-child(2),
+  th:nth-child(3) { text-align: center !important; }
+
+  /* Body tabel */
+  td {
+    padding: 7px 10px !important;
+    border-bottom: 1px solid #ccc !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    font-size: 9.5pt !important;
+    color: #000 !important;
+    background: transparent !important;
+    vertical-align: middle !important;
+  }
+  td:last-child { text-align: right !important; }
+  td:nth-child(2) { text-align: center !important; }
+  td:nth-child(3) { text-align: right !important; }
+
+  tbody tr:last-child td { border-bottom: 2px solid #000 !important; }
+
+  /* ── SUMMARY (Subtotal, Diskon, PPN, TOTAL) ── */
+  /* Tabel summary: no border kiri/kanan/atas, separator tipis */
+  .summary-table td,
+  table.summary td {
+    border: none !important;
+    border-bottom: 1px solid #ddd !important;
+    padding: 5px 10px !important;
+    font-size: 9.5pt !important;
+    color: #000 !important;
+    background: transparent !important;
+  }
+  .summary-table tr:last-child td,
+  table.summary tr:last-child td {
+    border-top: 2px solid #000 !important;
+    border-bottom: none !important;
+    font-weight: bold !important;
+    font-size: 11pt !important;
+  }
+
+  /* ── TOTAL besar di kanan bawah ── */
+  .total-amount, [style*="font-size:20"], [style*="font-size: 20"] {
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+  }
+
+  /* ── CATATAN BOX ── */
+  .catatan-box,
+  [style*="border:1px solid #BBDEFB"],
+  [style*="border: 1px solid #BBDEFB"],
+  [style*="border:1px solid"],
+  [style*="border: 1px"] {
+    border: 1px solid #000 !important;
+    background: transparent !important;
+    color: #000 !important;
+    padding: 10px 14px !important;
+    margin: 12px 0 !important;
+  }
+
+  /* ── TANDA TANGAN ── */
+  .signature-row,
+  [style*="display:flex;justify-content:space-between;margin-top"] {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 40px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #000 !important;
+    width: 100% !important;
+    background: transparent !important;
+  }
+  .signature-row > div,
+  .signature-row > * {
+    text-align: center !important;
+    min-width: 160px !important;
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  /* ── FORCE semua warna text & bg ── */
+  p, span, div, strong, b, small, label {
+    color: #000 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* Teks label abu2 di preview → hitam normal */
+  [style*="color:#8A8A9A"],
+  [style*="color: #8A8A9A"],
+  [style*="color:#666"],
+  [style*="color: #666"],
+  [style*="color:#888"],
+  [style*="color:#aaa"],
+  [style*="color:#555"] {
+    color: #000 !important;
+    opacity: 0.75 !important;
+  }
+
+  /* Warna biru/purple → hitam */
+  [style*="color:#1E5A96"],
+  [style*="color: #1E5A96"],
+  [style*="color:#0F2D52"],
+  [style*="color:#7C6FF7"],
+  [style*="color:#1a6fab"],
+  [style*="color:var(--purple)"],
+  [style*="color:var(--blue)"] {
+    color: #000 !important;
+  }
+
+  /* Background berwarna → transparan */
+  [style*="background:#0F2D52"],
+  [style*="background:#1E5A96"],
+  [style*="background:#BBDEFB"],
+  [style*="background:#FAFAFE"],
+  [style*="background:var("] {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* Gambar logo */
+  img {
+    max-width: 65px !important;
+    max-height: 65px !important;
+    height: auto !important;
+  }
+
+  @media print {
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    body { margin: 0; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    thead tr th {
+      background: #000 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`;
+
+// ── Clone & bersihkan untuk dot matrix ──
 function buildDotMatrixClone(containerId) {
   const contentEl = document.querySelector('#' + containerId + ' .pdf-content');
   if (!contentEl) return null;
 
   const clone = contentEl.cloneNode(true);
 
-  // ── 1. Strip SEMUA inline style yang bisa bikin teks ga kecetak ──
+  // Fix inline style: warna teks/bg yang di-hardcode di elemen
   clone.querySelectorAll('*').forEach(el => {
-    // Buang semua property berbahaya via removeProperty
-    const props = [
-      'background','background-color','background-image',
-      'box-shadow','text-shadow','border-radius',
-      'color','opacity','filter','mix-blend-mode'
-    ];
-    props.forEach(p => el.style.removeProperty(p));
-    // Set font monospace
-    el.style.fontFamily = "'Courier New', Courier, monospace";
-    el.style.color = '#000000';
+    const s = el.style;
+    // Background berwarna → transparan (kecuali thead th nanti di-handle CSS)
+    if (s.background && !el.matches('th')) s.background = 'transparent';
+    if (s.backgroundColor && !el.matches('th')) s.backgroundColor = 'transparent';
+    // Warna teks bukan hitam → hitam
+    if (s.color && s.color !== '#000' && s.color !== '#000000' && s.color !== 'rgb(0,0,0)') {
+      s.color = '#000000';
+    }
+    s.boxShadow = 'none';
+    s.textShadow = 'none';
+    s.borderRadius = '0';
   });
 
-  // ── 2. Header tabel: garis atas-bawah tebal, NO fill hitam ──
+  // Header tabel → hitam + teks putih (mirip navy preview)
   clone.querySelectorAll('th').forEach(th => {
-    th.style.cssText = [
-      'background:transparent!important',
-      'background-color:transparent!important',
-      'color:#000!important',
-      'font-weight:bold!important',
-      'font-size:9pt!important',
-      'padding:4px 6px!important',
-      'text-align:left!important',
-      'border-top:2px solid #000!important',
-      'border-bottom:2px solid #000!important',
-      'border-left:1px solid #000!important',
-      'border-right:1px solid #000!important',
-      'text-transform:uppercase!important',
-      'font-family:Courier New,Courier,monospace!important'
-    ].join(';');
+    th.style.cssText = `
+      background:#000!important;
+      background-color:#000!important;
+      color:#fff!important;
+      padding:8px 10px!important;
+      font-weight:bold!important;
+      font-size:9pt!important;
+      text-transform:uppercase!important;
+      border:1px solid #000!important;
+    `;
   });
 
-  // ── 3. Body tabel ──
+  // TD: bersih
   clone.querySelectorAll('td').forEach(td => {
-    td.style.cssText = [
-      'background:transparent!important',
-      'background-color:transparent!important',
-      'color:#000!important',
-      'border:1px solid #000!important',
-      'padding:3px 6px!important',
-      'font-size:9.5pt!important',
-      'vertical-align:top!important',
-      'font-family:Courier New,Courier,monospace!important'
-    ].join(';');
+    td.style.background = 'transparent';
+    td.style.backgroundColor = 'transparent';
+    td.style.color = '#000';
+    td.style.borderLeft = 'none';
+    td.style.borderRight = 'none';
+    td.style.borderTop = 'none';
+    td.style.borderBottom = '1px solid #ccc';
   });
 
-  // ── 4. doc-header: fix layout, alamat tidak lari ke kanan ──
-  // Cari semua div langsung di bawah .doc-header
-  const docHeader = clone.querySelector('.doc-header');
-  if (docHeader) {
-    docHeader.style.cssText = [
-      'display:grid!important',
-      'grid-template-columns:1fr auto!important',
-      'gap:10px!important',
-      'margin-bottom:12px!important',
-      'padding-bottom:10px!important',
-      'border-bottom:2px solid #000!important',
-      'background:transparent!important',
-      'width:100%!important'
-    ].join(';');
-
-    const blocks = docHeader.querySelectorAll(':scope > div, :scope > .block');
-    blocks.forEach((blk, i) => {
-      if (i === 0) {
-        // Kolom kiri: info perusahaan + alamat penerima
-        blk.style.cssText = 'width:100%!important;max-width:none!important;text-align:left!important;word-break:break-word!important;overflow-wrap:break-word!important';
-      } else {
-        // Kolom kanan: no doc + tanggal — compact
-        blk.style.cssText = 'min-width:130px!important;max-width:150px!important;text-align:right!important;white-space:nowrap!important;flex-shrink:0!important';
-      }
-    });
-  }
-
-  // ── 5. Bagian "Kepada" / alamat penerima — pastikan tidak overflow ke kanan ──
-  clone.querySelectorAll('div, p, span').forEach(el => {
-    const txt = el.textContent || '';
-    // Kalau mengandung "KEPADA" atau "Kepada" reset style supaya ga lari kanan
-    if (txt.includes('KEPADA') || txt.includes('Kepada') || txt.includes('kepada')) {
-      el.style.maxWidth = '100%';
-      el.style.wordBreak = 'break-word';
-      el.style.overflowWrap = 'break-word';
-    }
-  });
-
-  // ── 6. Tanda tangan bagian bawah: posisi rapi ──
-  // Cari div yang berisi "Pengirim" dan "Penerima"
-  clone.querySelectorAll('div').forEach(el => {
-    const txt = el.textContent || '';
-    if ((txt.includes('Pengirim') || txt.includes('Penerima') || txt.includes('pengirim') || txt.includes('penerima')) && el.children.length >= 2) {
-      el.style.cssText = [
-        'display:flex!important',
-        'justify-content:space-between!important',
-        'margin-top:30px!important',
-        'padding-top:10px!important',
-        'border-top:1px solid #000!important',
-        'width:100%!important',
-        'background:transparent!important'
-      ].join(';');
-      Array.from(el.children).forEach(child => {
-        child.style.cssText = 'text-align:center!important;min-width:150px!important;background:transparent!important;color:#000!important';
-      });
-    }
-  });
-
-  // ── 7. Semua border inline: force solid hitam ──
-  clone.querySelectorAll('[style*="border"]').forEach(el => {
-    // Ganti border berwarna jadi hitam
-    if (el.style.borderColor && el.style.borderColor !== 'transparent') {
-      el.style.borderColor = '#000';
-    }
-    el.style.borderStyle = el.style.borderStyle || 'solid';
-  });
-
-  // ── 8. Logo/gambar: kecilkan ──
+  // Logo
   clone.querySelectorAll('img').forEach(img => {
-    img.style.maxWidth = '60px';
-    img.style.maxHeight = '60px';
+    img.style.maxWidth = '65px';
+    img.style.maxHeight = '65px';
     img.style.height = 'auto';
   });
 
   return clone;
 }
 
-// ── CSS dot matrix yang dipakai baik print maupun PDF ──
-const DOT_MATRIX_CSS = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 10pt;
-    color: #000;
-    background: #fff;
-    margin: 0; padding: 0;
-  }
-  /* OVERRIDE PAKSA — semua elemen: hitam di putih */
-  body * {
-    color: #000 !important;
-    background: transparent !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-    border-radius: 0 !important;
-    font-family: 'Courier New', Courier, monospace !important;
-  }
-  .pdf-content {
-    width: 100% !important;
-    padding: 0 !important;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-  /* TABEL */
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    font-size: 9.5pt !important;
-    margin: 8px 0 !important;
-    table-layout: fixed !important;
-  }
-  th {
-    padding: 4px 6px !important;
-    font-weight: bold !important;
-    font-size: 9pt !important;
-    text-align: left !important;
-    border-top: 2px solid #000 !important;
-    border-bottom: 2px solid #000 !important;
-    border-left: 1px solid #000 !important;
-    border-right: 1px solid #000 !important;
-    text-transform: uppercase !important;
-    word-break: break-word !important;
-  }
-  td {
-    padding: 3px 6px !important;
-    border: 1px solid #000 !important;
-    font-size: 9.5pt !important;
-    vertical-align: top !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-  }
-  /* DOC HEADER: grid 2 kolom, kiri lebar kanan compact */
-  .doc-header {
-    display: grid !important;
-    grid-template-columns: 1fr auto !important;
-    gap: 10px !important;
-    margin-bottom: 12px !important;
-    padding-bottom: 10px !important;
-    border-bottom: 2px solid #000 !important;
-    width: 100% !important;
-  }
-  .doc-header > * {
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-  }
-  .doc-header > *:last-child {
-    min-width: 130px !important;
-    max-width: 150px !important;
-    text-align: right !important;
-    white-space: nowrap !important;
-  }
-  /* TANDA TANGAN */
-  img { max-width: 60px !important; max-height: 60px !important; height: auto !important; }
-  /* Semua text bisa wrap */
-  p, span, div, strong, b { word-break: break-word !important; overflow-wrap: break-word !important; }
-  @media print {
-    @page { size: A4 portrait; margin: 10mm 12mm; }
-    body { margin: 0; }
-    thead { display: table-header-group; }
-    tr { page-break-inside: avoid; }
-  }
-`;
-
-// ── CETAK ke printer dot matrix ──
+// ── CETAK ke printer ──
 function printDoc(containerId) {
   const clone = buildDotMatrixClone(containerId);
   if (!clone) { showToast('Tidak ada dokumen. Buka Preview terlebih dahulu.'); return; }
@@ -4936,7 +4997,7 @@ function printDoc(containerId) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Cetak Dokumen - Dot Matrix</title>
+  <title>Cetak Dokumen</title>
   <style>${DOT_MATRIX_CSS}</style>
 </head>
 <body>
@@ -4952,23 +5013,24 @@ function printDoc(containerId) {
   printWin.document.close();
 }
 
-// ── DOWNLOAD PDF versi dot matrix (hitam putih, layout presisi) ──
+// ── DOWNLOAD PDF versi dot matrix ──
 function downloadDotMatrixPDF(containerId) {
   const clone = buildDotMatrixClone(containerId);
   if (!clone) { showToast('Tidak ada dokumen. Buka Preview terlebih dahulu.'); return; }
   if (typeof window.html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
-    showToast('Library PDF belum siap. Periksa koneksi internet.');
+    showToast('Library PDF belum siap. Periksa koneksi.');
     return;
   }
 
-  showToast('Membuat PDF Dot Matrix...');
+  const btn = document.querySelector('#' + (containerId === 'pdfContent' ? 'pdfModal' : 'sttpPdfModal') + ' .modal-footer .btn-pdf');
+  const origLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '⏳ Proses...'; btn.disabled = true; }
+  const restore = () => { if (btn) { btn.innerHTML = origLabel; btn.disabled = false; } wrapper.remove(); };
 
-  // Render clone di DOM tersembunyi
   const CAPTURE_WIDTH = 794;
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = `position:fixed;top:0;left:-99999px;width:${CAPTURE_WIDTH}px;background:#fff;padding:20px;box-sizing:border-box`;
+  wrapper.style.cssText = `position:fixed;top:0;left:-99999px;width:${CAPTURE_WIDTH}px;background:#fff;padding:24px 28px;box-sizing:border-box`;
 
-  // Inject CSS dot matrix ke wrapper via style tag
   const styleEl = document.createElement('style');
   styleEl.textContent = DOT_MATRIX_CSS;
   wrapper.appendChild(styleEl);
@@ -4976,7 +5038,7 @@ function downloadDotMatrixPDF(containerId) {
   const inner = document.createElement('div');
   inner.className = 'pdf-content';
   inner.innerHTML = clone.innerHTML;
-  inner.style.cssText = `width:${CAPTURE_WIDTH - 40}px;background:#fff`;
+  inner.style.cssText = `width:${CAPTURE_WIDTH - 56}px;background:#fff;color:#000`;
   wrapper.appendChild(inner);
   document.body.appendChild(wrapper);
   void inner.offsetHeight;
@@ -4985,7 +5047,17 @@ function downloadDotMatrixPDF(containerId) {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
-    windowWidth: CAPTURE_WIDTH
+    windowWidth: CAPTURE_WIDTH,
+    onclone: (doc) => {
+      // Paksa th hitam di canvas clone
+      doc.querySelectorAll('th').forEach(th => {
+        th.style.setProperty('background', '#000', 'important');
+        th.style.setProperty('background-color', '#000', 'important');
+        th.style.setProperty('color', '#fff', 'important');
+        th.style.setProperty('-webkit-print-color-adjust', 'exact', 'important');
+        th.style.setProperty('print-color-adjust', 'exact', 'important');
+      });
+    }
   }).then(canvas => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -4997,11 +5069,27 @@ function downloadDotMatrixPDF(containerId) {
     const mmPerPx = usableW / canvas.width;
     const pageHPx = usableH / mmPerPx;
 
+    // Safe cut points: potong di batas baris tabel
+    const safeCuts = new Set([0]);
+    const elTop = inner.getBoundingClientRect().top;
+    inner.querySelectorAll('tr, .pdf-footer').forEach(node => {
+      const r = node.getBoundingClientRect();
+      if (r.height === 0) return;
+      const bp = (r.bottom - elTop) * 2;
+      if (bp > 0) safeCuts.add(Math.round(bp));
+    });
+    const cutPoints = Array.from(safeCuts).sort((a, b) => a - b);
+
     let srcY = 0;
     while (srcY < canvas.height) {
-      const cutY = Math.min(srcY + pageHPx, canvas.height);
+      const idealBottom = srcY + pageHPx;
+      let cutY = idealBottom < canvas.height
+        ? (cutPoints.filter(p => p > srcY && p <= idealBottom).pop() || idealBottom)
+        : canvas.height;
+
       const sliceH = cutY - srcY;
-      if (sliceH <= 0) break;
+      if (sliceH <= 0) { srcY = cutY + 1; continue; }
+
       const sc = document.createElement('canvas');
       sc.width = canvas.width;
       sc.height = Math.ceil(sliceH);
@@ -5014,15 +5102,14 @@ function downloadDotMatrixPDF(containerId) {
       srcY = cutY;
     }
 
-    // Nama file
     const ts = new Date();
     const tgl = `${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}`;
     pdf.save(`DotMatrix-${tgl}.pdf`);
     showToast('PDF Dot Matrix berhasil didownload!');
-    wrapper.remove();
+    restore();
   }).catch(err => {
     showToast('Gagal buat PDF: ' + err.message);
-    wrapper.remove();
+    restore();
   });
 }
 
