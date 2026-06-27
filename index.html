@@ -3790,9 +3790,26 @@ function generatePDFPreview(type) {
     </div>
   `;
 
-  const pdfContent = document.getElementById('pdfContent');
-  pdfContent.innerHTML = `
-    <div class="pdf-content">
+  // Rangkap labels per tipe dokumen
+  const rangkapLabels = isSJ
+    ? [
+        { label: 'LEMBAR 1 - ASLI (ARSIP)',      color: '#1E5A96', bg: '#E3F2FD' },
+        { label: 'LEMBAR 2 - PENGIRIM',           color: '#1B7B4A', bg: '#E8F5E9' },
+        { label: 'LEMBAR 3 - PENERIMA / OUTLET',  color: '#7B3F00', bg: '#FFF3E0' },
+      ]
+    : [
+        { label: 'LEMBAR 1 - ASLI (ARSIP)',       color: '#1E5A96', bg: '#E3F2FD' },
+        { label: 'LEMBAR 2 - UNTUK CUSTOMER',     color: '#1B7B4A', bg: '#E8F5E9' },
+        { label: 'LEMBAR 3 - UNTUK PENAGIHAN',    color: '#7B3F00', bg: '#FFF3E0' },
+      ];
+
+  const buildPageHtml = (rangkap) => `
+    <div class="pdf-content" style="page-break-after:always;position:relative">
+      <!-- RANGKAP BADGE -->
+      <div style="position:absolute;top:12px;right:12px;background:${rangkap.bg};color:${rangkap.color};border:1.5px solid ${rangkap.color};border-radius:6px;padding:3px 10px;font-size:10px;font-weight:800;letter-spacing:0.5px;z-index:10">
+        ${rangkap.label}
+      </div>
+
       <!-- HEADER: Logo + Nama Perusahaan kiri | Judul Dokumen kanan -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #1E5A96;gap:16px">
         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
@@ -3803,7 +3820,7 @@ function generatePDFPreview(type) {
             ${profile.phone ? `<div style="font-size:11px;color:#8A8A9A;word-break:break-word;overflow-wrap:break-word">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
+        <div style="text-align:right;flex-shrink:0;padding-right:${(type === 'so' || isInv) ? '100px' : '0'}">
           <h1 style="color:#1E5A96;font-size:${type === 'po' ? 22 : (isInv ? 40 : 30)}px;margin:0 0 4px">${typeLabels[type]}</h1>
           <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${doc.no}</p>
           <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL</p>
@@ -3846,6 +3863,9 @@ function generatePDFPreview(type) {
       ${signatureHtml}
     </div>
   `;
+
+  const pdfContent = document.getElementById('pdfContent');
+  pdfContent.innerHTML = rangkapLabels.map(r => buildPageHtml(r)).join('');
   
   document.getElementById('pdfModal').classList.add('open');
   scalePdfPreview();
@@ -3856,7 +3876,6 @@ function scalePdfPreview() {
   const content = document.querySelector('#pdfContent .pdf-content');
   const container = document.querySelector('.pdf-preview-container');
   if (!outer || !content || !container) return;
-  // lebar asli konten (intrinsic) sebelum di-scale
   const naturalWidth = content.offsetWidth || 700;
   const naturalHeight = content.offsetHeight;
   // lebar yang tersedia di dalam container (dikurangi padding kiri-kanan)
@@ -3904,9 +3923,9 @@ function downloadPDF() {
   };
   const fileName = buildFileName();
 
-  // Ambil persis konten yang sedang ditampilkan di Preview PDF
-  const sourceEl = document.querySelector('#pdfContent .pdf-content');
-  if (!sourceEl) {
+  // Ambil semua 3 lembar rangkap
+  const sourceEls = document.querySelectorAll('#pdfContent .pdf-content');
+  if (!sourceEls || sourceEls.length === 0) {
     showToast('Tidak ada dokumen untuk diunduh. Silakan buka Preview PDF terlebih dahulu.');
     return;
   }
@@ -3919,114 +3938,85 @@ function downloadPDF() {
   const originalLabel = downloadBtn ? downloadBtn.innerHTML : '';
   if (downloadBtn) { downloadBtn.innerHTML = '⏳ Memproses...'; downloadBtn.disabled = true; }
 
-  // Render ke elemen tersembunyi dengan lebar tetap agar layout konsisten
-  const CAPTURE_WIDTH = 794; // setara lebar A4 @ 96dpi
-  const clone = sourceEl.cloneNode(true);
-  const wrapper = document.createElement('div');
-  wrapper.style.position = 'fixed';
-  wrapper.style.top = '0';
-  wrapper.style.left = '-99999px';
-  wrapper.style.width = CAPTURE_WIDTH + 'px';
-  clone.style.width = CAPTURE_WIDTH + 'px';
-  clone.style.boxShadow = 'none';
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
+  const CAPTURE_WIDTH = 794;
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidthMM  = pdf.internal.pageSize.getWidth();
+  const pageHeightMM = pdf.internal.pageSize.getHeight();
+  const marginX = 10, marginTop = 12, marginBottom = 14;
+  const usableWidthMM  = pageWidthMM - marginX * 2;
+  const usableHeightMM = pageHeightMM - marginTop - marginBottom;
 
   const restore = () => {
     if (downloadBtn) { downloadBtn.innerHTML = originalLabel; downloadBtn.disabled = false; }
-    wrapper.remove();
+    document.querySelectorAll('.rangkap-clone-wrapper').forEach(w => w.remove());
   };
 
-  // Kumpulkan posisi safe-cut: ambil y-bottom setiap baris tabel di clone (px relatif ke clone)
-  const getSafeCutPoints = (el, scale) => {
-    const points = new Set([0]);
-    const elTop = el.getBoundingClientRect().top;
-    // Semua baris tabel dan elemen block di dalam konten PDF
-    el.querySelectorAll('tr, .pdf-footer').forEach(node => {
-      const r = node.getBoundingClientRect();
-      if (r.height === 0) return;
-      const bottomPx = (r.bottom - elTop) * scale;
-      if (bottomPx > 0) points.add(Math.round(bottomPx));
-    });
-    return Array.from(points).sort((a, b) => a - b);
-  };
+  // Render setiap lembar satu per satu secara berurutan
+  const renderLembar = async (el, isFirst) => {
+    const clone = el.cloneNode(true);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rangkap-clone-wrapper';
+    wrapper.style.cssText = 'position:fixed;top:0;left:-99999px;width:' + CAPTURE_WIDTH + 'px';
+    clone.style.width = CAPTURE_WIDTH + 'px';
+    clone.style.boxShadow = 'none';
+    clone.style.pageBreakAfter = 'auto';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+    void clone.offsetHeight;
 
-  // Wrapper sudah di-append ke DOM di atas, jadi getBoundingClientRect valid
-  // Paksa browser layout dulu sebelum ukur
-  void clone.offsetHeight;
-  const safeCuts = getSafeCutPoints(clone, 2); // html2canvas scale=2
+    return html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: CAPTURE_WIDTH })
+      .then(canvas => {
+        wrapper.remove();
+        const mmPerPx = usableWidthMM / canvas.width;
+        const pageHeightPx = usableHeightMM / mmPerPx;
 
-  html2canvas(clone, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    windowWidth: CAPTURE_WIDTH
-  }).then(canvas => {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+        // Safe cut points
+        const points = new Set([0]);
+        const elTop = clone.getBoundingClientRect().top;
+        clone.querySelectorAll('tr').forEach(node => {
+          const r = node.getBoundingClientRect();
+          if (r.height > 0) points.add(Math.round((r.bottom - elTop) * 2));
+        });
+        const safeCuts = Array.from(points).sort((a,b) => a - b);
 
-    const pageWidthMM   = pdf.internal.pageSize.getWidth();
-    const pageHeightMM  = pdf.internal.pageSize.getHeight();
+        let srcY = 0;
+        let firstSlice = true;
+        while (srcY < canvas.height) {
+          const idealBottom = srcY + pageHeightPx;
+          let cutY = idealBottom < canvas.height
+            ? (() => { const c = safeCuts.filter(p => p > srcY && p <= idealBottom); return c.length ? c[c.length-1] : idealBottom; })()
+            : canvas.height;
+          const sliceH = cutY - srcY;
+          if (sliceH <= 0) { srcY = cutY + 1; continue; }
 
-    const marginX      = 10;
-    const marginTop    = 12;
-    const marginBottom = 14;
+          const sc = document.createElement('canvas');
+          sc.width = canvas.width; sc.height = Math.ceil(sliceH);
+          const ctx = sc.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,sc.width,sc.height);
+          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
-    const usableWidthMM  = pageWidthMM - marginX * 2;
-    const usableHeightMM = pageHeightMM - marginTop - marginBottom;
-
-    // mm per canvas-pixel (canvas sudah scale=2)
-    const mmPerPx = usableWidthMM / canvas.width;
-
-    // Tinggi area konten per halaman dalam pixel canvas
-    const pageHeightPx = usableHeightMM / mmPerPx;
-
-    let srcY = 0; // posisi crop atas di canvas (px)
-
-    while (srcY < canvas.height) {
-      const idealBottom = srcY + pageHeightPx;
-
-      // Cari safe-cut point terdekat yang TIDAK melebihi idealBottom
-      // Kalau ga ada (konten menerus tanpa baris tabel), pakai idealBottom langsung
-      let cutY = idealBottom;
-      if (idealBottom < canvas.height) {
-        // Cari cut point terbesar yang <= idealBottom
-        const candidate = safeCuts.filter(p => p > srcY && p <= idealBottom);
-        if (candidate.length > 0) {
-          cutY = candidate[candidate.length - 1]; // titik paling bawah yg masih aman
+          if (!isFirst || !firstSlice) pdf.addPage();
+          firstSlice = false;
+          pdf.addImage(sc.toDataURL('image/jpeg', 0.95), 'JPEG', marginX, marginTop, usableWidthMM, sliceH * mmPerPx);
+          srcY = cutY;
         }
-        // Kalau tidak ada sama sekali (baris sangat tinggi), potong di idealBottom aja
-      } else {
-        cutY = canvas.height;
+      });
+  };
+
+  (async () => {
+    try {
+      for (let i = 0; i < sourceEls.length; i++) {
+        await renderLembar(sourceEls[i], i === 0);
       }
-
-      const sliceHeightPx = cutY - srcY;
-      if (sliceHeightPx <= 0) { srcY = cutY + 1; continue; } // safety
-
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width  = canvas.width;
-      sliceCanvas.height = Math.ceil(sliceHeightPx);
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, srcY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
-
-      const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
-      const sliceHeightMM = sliceHeightPx * mmPerPx;
-
-      if (srcY > 0) pdf.addPage();
-      pdf.addImage(sliceData, 'JPEG', marginX, marginTop, usableWidthMM, sliceHeightMM);
-
-      srcY = cutY;
+      pdf.save(fileName);
+      showToast('PDF 3 rangkap berhasil didownload!');
+    } catch(err) {
+      showToast('Gagal membuat PDF: ' + err.message);
+    } finally {
+      restore();
     }
-
-    pdf.save(fileName);
-    showToast('PDF berhasil didownload!');
-    restore();
-  }).catch(err => {
-    showToast('Gagal membuat PDF: ' + err.message);
-    restore();
-  });
+  })();
 }
 
 // ===== UI FUNCTIONS =====
