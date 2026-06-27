@@ -3642,12 +3642,12 @@ function generatePDFPreview(type) {
   // Unified item rows — semua tipe tampilkan: Nama, Qty+UOM, Harga Satuan, Subtotal
   let itemRows = doc.items.map((item, idx) => {
     const subtotal = item.qty * item.price;
-    const borderB = idx < doc.items.length - 1 ? 'border-bottom:1px solid #000;' : '';
-    return `<tr style="${borderB}">
-      <td style="padding:5px 4px;font-family:Courier New,Courier,monospace;color:#000">${item.name}</td>
-      <td style="text-align:center;padding:5px 4px;font-family:Courier New,Courier,monospace;color:#000">${item.qty} ${item.uom || 'pcs'}</td>
-      <td style="text-align:right;padding:5px 4px;font-family:Courier New,Courier,monospace;color:#000">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
-      <td style="text-align:right;padding:5px 4px;font-family:Courier New,Courier,monospace;color:#000">Rp ${subtotal.toLocaleString('id-ID')}</td>
+    const bg = idx % 2 === 1 ? 'background:#F8F6FF' : '';
+    return `<tr style="${bg}">
+      <td style="padding:10px 12px">${item.name}</td>
+      <td style="text-align:center;padding:10px 12px">${item.qty} ${item.uom || 'pcs'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${subtotal.toLocaleString('id-ID')}</td>
     </tr>`;
   }).join('');
   
@@ -3655,23 +3655,23 @@ function generatePDFPreview(type) {
   let totalsHtml = '';
   if (!isInv) {
     totalsHtml = `
-      <div style="display:flex;justify-content:flex-end;margin-top:8px">
-        <table style="border-collapse:collapse;min-width:260px;font-family:Courier New,Courier,monospace;color:#000;font-size:12px">
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <table style="border-collapse:collapse;min-width:280px">
           <tr>
-            <td style="padding:3px 10px;">Subtotal</td>
-            <td style="padding:3px 10px;text-align:right;">Rp ${total.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">Subtotal</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">Rp ${total.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:3px 10px;">Diskon</td>
-            <td style="padding:3px 10px;text-align:right;">- Rp ${discount.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">Diskon</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">- Rp ${discount.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:3px 10px;">PPN</td>
-            <td style="padding:3px 10px;text-align:right;">Rp ${ppn.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">PPN</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">Rp ${ppn.toLocaleString('id-ID')}</td>
           </tr>
-          <tr style="border-top:2px solid #000">
-            <td style="padding:5px 10px;font-weight:900;font-size:13px">TOTAL</td>
-            <td style="padding:5px 10px;text-align:right;font-weight:900;font-size:13px">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+          <tr style="border-top:2px solid #1E5A96">
+            <td style="padding:10px 16px;font-weight:700;font-size:14px">TOTAL</td>
+            <td style="padding:10px 16px;text-align:right;font-weight:700;font-size:16px;color:#1E5A96">Rp ${grandTotal.toLocaleString('id-ID')}</td>
           </tr>
         </table>
       </div>
@@ -3692,9 +3692,9 @@ function generatePDFPreview(type) {
     const tglOrder = poRef?.date || doc.date;
     const tglKirim = doc.date;
     let rows = '';
-    if (doc.poNo) rows += `<p style="font-size:11px;color:#000;margin-top:4px;font-family:Courier New,Courier,monospace">No PO: <strong>${doc.poNo}</strong></p>`;
-    rows += `<p style="font-size:11px;color:#000;margin-top:4px;font-family:Courier New,Courier,monospace">Tgl Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
-    rows += `<p style="font-size:11px;color:#000;margin-top:2px;font-family:Courier New,Courier,monospace">Tgl Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
+    if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${doc.poNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
     detailRightHtml = rows;
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
@@ -3705,10 +3705,10 @@ function generatePDFPreview(type) {
       ? new Date(soRef.date).toLocaleDateString('id-ID')
       : null;
     let rows = '';
-    if (refPoNo) rows += `<p style="font-size:11px;color:#000;margin-top:4px;font-family:Courier New,Courier,monospace">No PO: <strong>${refPoNo}</strong></p>`;
-    if (doc.soNo) rows += `<p style="font-size:11px;color:#000;margin-top:2px;font-family:Courier New,Courier,monospace">No SJ: <strong>${doc.soNo}</strong></p>`;
-    if (tglKirimInv) rows += `<p style="font-size:11px;color:#000;margin-top:2px;font-family:Courier New,Courier,monospace">Tgl Kirim: <strong>${tglKirimInv}</strong></p>`;
-    rows += `<p style="font-size:11px;color:#000;margin-top:2px;font-family:Courier New,Courier,monospace">Term Payment: <strong>7 Hari</strong></p>`;
+    if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${refPoNo}</strong></p>`;
+    if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No SJ: <strong>${doc.soNo}</strong></p>`;
+    if (tglKirimInv) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${tglKirimInv}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Term Payment: <strong>7 Hari</strong></p>`;
     detailRightHtml = rows;
   }
 
@@ -3716,9 +3716,9 @@ function generatePDFPreview(type) {
   let catatanHtml = '';
   if (isSJ) {
     catatanHtml = `
-      <div style="width:80%;margin-top:12px;padding:8px 12px;border:1px solid #000;font-family:Courier New,Courier,monospace;color:#000">
-        <div style="font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Catatan</div>
-        <div style="font-size:11px;">${doc.notes || '-'}</div>
+      <div style="width:80%;margin-top:20px;padding:14px 16px;border:1px solid #BBDEFB;border-radius:10px;background:#FAFAFE">
+        <div style="font-size:12px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
+        <div style="font-size:13px;color:#555">${doc.notes || '-'}</div>
       </div>
     `;
   }
@@ -3728,27 +3728,27 @@ function generatePDFPreview(type) {
   let paymentHtml = '';
   if (isInv) {
     terbilangHtml = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:10px;font-family:Courier New,Courier,monospace;color:#000">
-        <div style="flex:1;padding:8px 10px;border:1px solid #000;font-size:11px">
-          <div style="font-weight:900;margin-bottom:3px;text-transform:uppercase">Terbilang:</div>
-          <div style="font-weight:700">${terbilang(grandTotal)}</div>
+      <div style="display:flex;justify-content:center;align-items:flex-start;gap:32px;margin-top:16px">
+        <div style="max-width:340px;min-width:300px;padding:14px 18px;border:1px solid #BBDEFB;border-radius:7px;background:#FAFAFE;margin-top:20px">
+          <div style="font-size:12px;color:#8A8A9A;margin-bottom:4px">Terbilang</div>
+          <div style="font-weight:700;font-size:13px;color:#1A1A2E">${terbilang(grandTotal)}</div>
         </div>
-        <table style="border-collapse:collapse;font-size:11px;min-width:220px">
+        <table style="border-collapse:collapse">
           <tr>
-            <td style="padding:2px 8px;">Subtotal</td>
-            <td style="padding:2px 8px;text-align:right;">Rp ${total.toLocaleString('id-ID')}</td>
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">Subtotal</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">Rp ${total.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:2px 8px;">Diskon</td>
-            <td style="padding:2px 8px;text-align:right;">- Rp ${discount.toLocaleString('id-ID')}</td>
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">Diskon</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">- Rp ${discount.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr style="border-bottom:2px solid #1E5A96">
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">PPN</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">Rp ${ppn.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:2px 8px;">PPN</td>
-            <td style="padding:2px 8px;text-align:right;">Rp ${ppn.toLocaleString('id-ID')}</td>
-          </tr>
-          <tr style="border-top:2px solid #000">
-            <td style="padding:5px 8px;font-weight:900;font-size:13px">TOTAL</td>
-            <td style="padding:5px 8px;text-align:right;font-weight:900;font-size:13px">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:14px">TOTAL</td>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:16px;color:#1E5A96">Rp ${grandTotal.toLocaleString('id-ID')}</td>
           </tr>
         </table>
       </div>
@@ -3758,13 +3758,13 @@ function generatePDFPreview(type) {
     const accountNumber = paymentData.accountNumber || '108-298-2153';
     const accountHolder = paymentData.accountHolder || 'KHANSA DWI AGUSTINA';
     paymentHtml = `
-      <div style="display:flex;justify-content:flex-start;margin-top:10px">
-        <div style="padding:6px 10px;border:1px solid #000;max-width:240px;font-family:Courier New,Courier,monospace;color:#000">
-          <div style="font-size:10px;font-weight:900;text-transform:uppercase;margin-bottom:3px">Pembayaran:</div>
+      <div style="display:flex;justify-content:flex-start;margin-top:14px">
+        <div style="padding:8px 10px;border:1px solid #BBDEFB;border-radius:6px;background:#FAFAFE;max-width:240px">
+          <div style="font-size:10px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Payment</div>
           <table style="border-collapse:collapse;font-size:10px">
-            <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">Nama Bank</td><td style="padding:1px 0;font-weight:700">: ${bankName}</td></tr>
-            <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">No Rekening</td><td style="padding:1px 0;font-weight:700">: ${accountNumber}</td></tr>
-            <tr><td style="padding:1px 6px 1px 0;white-space:nowrap">Atas Nama</td><td style="padding:1px 0;font-weight:700">: ${accountHolder}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">Nama Bank</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${bankName}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">No Rekening</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${accountNumber}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">Atas Nama</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${accountHolder}</td></tr>
           </table>
         </div>
       </div>
@@ -3778,85 +3778,68 @@ function generatePDFPreview(type) {
   else sigLabels = ['Dibuat Oleh', `Diterima (${partyName})`];
 
   const signatureHtml = `
-    <div style="display:flex;justify-content:space-between;margin-top:30px;padding-top:10px;border-top:2px solid #000;font-family:Courier New,Courier,monospace;color:#000;font-size:11px">
+    <div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
       <div style="text-align:center">
-        <div style="height:55px"></div>
-        <div style="border-top:1px solid #000;width:160px;padding-top:5px;font-weight:700">${sigLabels[0]}</div>
+        <div style="height:50px"></div>
+        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[0]}</div>
       </div>
       <div style="text-align:center">
-        <div style="height:55px"></div>
-        <div style="border-top:1px solid #000;width:160px;padding-top:5px;font-weight:700">${sigLabels[1]}</div>
+        <div style="height:50px"></div>
+        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[1]}</div>
       </div>
     </div>
   `;
 
   // Rangkap labels per tipe dokumen
-  const rangkapLabels = isSJ
-    ? [
-        { label: 'LEMBAR 1 - ASLI (ARSIP)',      color: '#1E5A96', bg: '#E3F2FD' },
-        { label: 'LEMBAR 2 - PENGIRIM',           color: '#1B7B4A', bg: '#E8F5E9' },
-        { label: 'LEMBAR 3 - PENERIMA / OUTLET',  color: '#7B3F00', bg: '#FFF3E0' },
-      ]
-    : [
-        { label: 'LEMBAR 1 - ASLI (ARSIP)',       color: '#1E5A96', bg: '#E3F2FD' },
-        { label: 'LEMBAR 2 - UNTUK CUSTOMER',     color: '#1B7B4A', bg: '#E8F5E9' },
-        { label: 'LEMBAR 3 - UNTUK PENAGIHAN',    color: '#7B3F00', bg: '#FFF3E0' },
-      ];
-
-  const DM = 'font-family:Courier New,Courier,monospace;color:#000;background:#fff;';
-  const buildPageHtml = (rangkap) => `
-    <div class="pdf-content" style="page-break-after:always;position:relative;${DM}font-size:12px;line-height:1.5;padding:20px 28px;">
-
-      <!-- RANGKAP LABEL -->
-      <div style="position:absolute;top:14px;right:20px;border:2px solid #000;padding:2px 10px;font-size:10px;font-weight:900;letter-spacing:1px;${DM}">
-        ${rangkap.label}
-      </div>
-
-      <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:10px">
-          ${logo ? `<img src="${logo}" style="width:54px;height:54px;object-fit:contain;flex-shrink:0;filter:grayscale(100%) contrast(200%)">` : ''}
-          <div>
-            <div style="font-size:15px;font-weight:900;${DM}letter-spacing:0.5px">${profile.name}</div>
-            ${profile.address ? `<div style="font-size:10px;${DM}">${profile.address}</div>` : ''}
-            ${profile.phone ? `<div style="font-size:10px;${DM}">Telp: ${profile.phone}</div>` : ''}
+  const pdfContent = document.getElementById('pdfContent');
+  pdfContent.innerHTML = `
+    <div class="pdf-content">
+      <!-- HEADER: Logo + Nama Perusahaan kiri | Judul Dokumen kanan -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #1E5A96;gap:16px">
+        <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
+          ${logo ? `<img src="${logo}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0">` : '<div style="width:64px;height:64px;border-radius:8px;background:#E3F2FD;display:flex;align-items:center;justify-content:center;color:#1E5A96;font-weight:700;font-size:20px;flex-shrink:0">IJ</div>'}
+          <div style="min-width:0">
+            <div style="font-size:17px;font-weight:700;color:#1A1A2E;word-break:break-word;overflow-wrap:break-word">${profile.name}</div>
+            ${profile.address ? `<div style="font-size:11px;color:#8A8A9A;margin-top:2px;word-break:break-word;overflow-wrap:break-word">${profile.address}</div>` : ''}
+            ${profile.phone ? `<div style="font-size:11px;color:#8A8A9A;word-break:break-word;overflow-wrap:break-word">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
-        <div style="text-align:right;padding-right:110px">
-          <div style="font-size:22px;font-weight:900;${DM}letter-spacing:1px;text-transform:uppercase">${typeLabels[type]}</div>
-          <div style="font-size:12px;font-weight:700;${DM}">${doc.no}</div>
-          <div style="font-size:10px;${DM}">Tanggal: ${new Date(doc.date).toLocaleDateString('id-ID')}</div>
+        <div style="text-align:right;flex-shrink:0">
+          <h1 style="color:#1E5A96;font-size:${type === 'po' ? 22 : (isInv ? 40 : 30)}px;margin:0 0 4px">${typeLabels[type]}</h1>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${doc.no}</p>
+          <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL</p>
+          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(doc.date).toLocaleDateString('id-ID')}</p>
           ${extraDateHtml}
         </div>
       </div>
-
-      <!-- INFO PIHAK & DETAIL -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid #000;padding-bottom:8px">
+      
+      <!-- INFO: Pihak & Detail Dokumen -->
+      <div class="doc-header" style="margin-bottom:20px">
         <div>
-          <div style="font-size:10px;font-weight:700;${DM}text-transform:uppercase">${partyLabel}:</div>
-          <div style="font-size:13px;font-weight:900;${DM}">${partyName}</div>
-          ${partyAddr ? `<div style="font-size:10px;${DM}">${partyAddr}</div>` : ''}
-          ${partyPhone ? `<div style="font-size:10px;${DM}">Telp: ${partyPhone}</div>` : ''}
+          <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:4px">${partyLabel}</p>
+          <strong style="font-size:15px">${partyName}</strong>
+          ${partyAddr ? `<p style="font-size:12px;color:#8A8A9A;margin-top:4px">${partyAddr}</p>` : ''}
+          ${partyPhone ? `<p style="font-size:12px;color:#8A8A9A">Telp: ${partyPhone}</p>` : ''}
         </div>
-        <div style="text-align:right;font-size:11px;${DM}">
+        <div style="text-align:right">
           ${detailRightHtml}
-          ${(!isSJ && doc.notes) ? `<div style="margin-top:6px;font-size:10px;${DM}">Catatan: ${doc.notes}</div>` : ''}
+          ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#8A8A9A;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
         </div>
       </div>
-
+      
       <!-- TABEL ITEM -->
-      <table style="width:100%;border-collapse:collapse;margin-bottom:8px;${DM}font-size:11px">
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #BBDEFB;border-radius:8px;overflow:hidden">
         <thead>
-          <tr style="border-top:2px solid #000;border-bottom:2px solid #000;">
-            <th style="text-align:left;padding:5px 4px;font-weight:900;${DM}">Nama Barang</th>
-            <th style="text-align:center;padding:5px 4px;font-weight:900;${DM}">Qty / UOM</th>
-            <th style="text-align:right;padding:5px 4px;font-weight:900;${DM}">Harga Satuan</th>
-            <th style="text-align:right;padding:5px 4px;font-weight:900;${DM}">Subtotal</th>
+          <tr style="background:#0F2D52">
+            <th style="text-align:left;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Nama Barang</th>
+            <th style="text-align:center;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Qty / UOM</th>
+            <th style="text-align:right;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Harga Satuan</th>
+            <th style="text-align:right;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Subtotal</th>
           </tr>
         </thead>
-        <tbody style="border-bottom:1px solid #000">${itemRows}</tbody>
+        <tbody style="border-top:2px solid #0F2D52">${itemRows}</tbody>
       </table>
-
+      
       ${totalsHtml}
       ${catatanHtml}
       ${terbilangHtml}
@@ -3864,9 +3847,6 @@ function generatePDFPreview(type) {
       ${signatureHtml}
     </div>
   `;
-
-  const pdfContent = document.getElementById('pdfContent');
-  pdfContent.innerHTML = rangkapLabels.map(r => buildPageHtml(r)).join('');
   
   document.getElementById('pdfModal').classList.add('open');
   scalePdfPreview();
@@ -3924,9 +3904,9 @@ function downloadPDF() {
   };
   const fileName = buildFileName();
 
-  // Ambil semua 3 lembar rangkap
-  const sourceEls = document.querySelectorAll('#pdfContent .pdf-content');
-  if (!sourceEls || sourceEls.length === 0) {
+  // Ambil konten yang sedang ditampilkan di Preview PDF
+  const sourceEl = document.querySelector('#pdfContent .pdf-content');
+  if (!sourceEl) {
     showToast('Tidak ada dokumen untuk diunduh. Silakan buka Preview PDF terlebih dahulu.');
     return;
   }
@@ -3940,84 +3920,84 @@ function downloadPDF() {
   if (downloadBtn) { downloadBtn.innerHTML = '⏳ Memproses...'; downloadBtn.disabled = true; }
 
   const CAPTURE_WIDTH = 794;
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidthMM  = pdf.internal.pageSize.getWidth();
-  const pageHeightMM = pdf.internal.pageSize.getHeight();
-  const marginX = 10, marginTop = 12, marginBottom = 14;
-  const usableWidthMM  = pageWidthMM - marginX * 2;
-  const usableHeightMM = pageHeightMM - marginTop - marginBottom;
+  const clone = sourceEl.cloneNode(true);
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.top = '0';
+  wrapper.style.left = '-99999px';
+  wrapper.style.width = CAPTURE_WIDTH + 'px';
+  clone.style.width = CAPTURE_WIDTH + 'px';
+  clone.style.boxShadow = 'none';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
   const restore = () => {
     if (downloadBtn) { downloadBtn.innerHTML = originalLabel; downloadBtn.disabled = false; }
-    document.querySelectorAll('.rangkap-clone-wrapper').forEach(w => w.remove());
+    wrapper.remove();
   };
 
-  // Render setiap lembar satu per satu secara berurutan
-  const renderLembar = async (el, isFirst) => {
-    const clone = el.cloneNode(true);
-    const wrapper = document.createElement('div');
-    wrapper.className = 'rangkap-clone-wrapper';
-    wrapper.style.cssText = 'position:fixed;top:0;left:-99999px;width:' + CAPTURE_WIDTH + 'px';
-    clone.style.width = CAPTURE_WIDTH + 'px';
-    clone.style.boxShadow = 'none';
-    clone.style.pageBreakAfter = 'auto';
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
-    void clone.offsetHeight;
-
-    return html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: CAPTURE_WIDTH })
-      .then(canvas => {
-        wrapper.remove();
-        const mmPerPx = usableWidthMM / canvas.width;
-        const pageHeightPx = usableHeightMM / mmPerPx;
-
-        // Safe cut points
-        const points = new Set([0]);
-        const elTop = clone.getBoundingClientRect().top;
-        clone.querySelectorAll('tr').forEach(node => {
-          const r = node.getBoundingClientRect();
-          if (r.height > 0) points.add(Math.round((r.bottom - elTop) * 2));
-        });
-        const safeCuts = Array.from(points).sort((a,b) => a - b);
-
-        let srcY = 0;
-        let firstSlice = true;
-        while (srcY < canvas.height) {
-          const idealBottom = srcY + pageHeightPx;
-          let cutY = idealBottom < canvas.height
-            ? (() => { const c = safeCuts.filter(p => p > srcY && p <= idealBottom); return c.length ? c[c.length-1] : idealBottom; })()
-            : canvas.height;
-          const sliceH = cutY - srcY;
-          if (sliceH <= 0) { srcY = cutY + 1; continue; }
-
-          const sc = document.createElement('canvas');
-          sc.width = canvas.width; sc.height = Math.ceil(sliceH);
-          const ctx = sc.getContext('2d');
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,sc.width,sc.height);
-          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-
-          if (!isFirst || !firstSlice) pdf.addPage();
-          firstSlice = false;
-          pdf.addImage(sc.toDataURL('image/jpeg', 0.95), 'JPEG', marginX, marginTop, usableWidthMM, sliceH * mmPerPx);
-          srcY = cutY;
-        }
-      });
+  const getSafeCutPoints = (el, scale) => {
+    const points = new Set([0]);
+    const elTop = el.getBoundingClientRect().top;
+    el.querySelectorAll('tr, .pdf-footer').forEach(node => {
+      const r = node.getBoundingClientRect();
+      if (r.height === 0) return;
+      const bottomPx = (r.bottom - elTop) * scale;
+      if (bottomPx > 0) points.add(Math.round(bottomPx));
+    });
+    return Array.from(points).sort((a, b) => a - b);
   };
 
-  (async () => {
-    try {
-      for (let i = 0; i < sourceEls.length; i++) {
-        await renderLembar(sourceEls[i], i === 0);
+  void clone.offsetHeight;
+  const safeCuts = getSafeCutPoints(clone, 2);
+
+  html2canvas(clone, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    windowWidth: CAPTURE_WIDTH
+  }).then(canvas => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidthMM  = pdf.internal.pageSize.getWidth();
+    const pageHeightMM = pdf.internal.pageSize.getHeight();
+    const marginX = 10, marginTop = 12, marginBottom = 14;
+    const usableWidthMM  = pageWidthMM - marginX * 2;
+    const usableHeightMM = pageHeightMM - marginTop - marginBottom;
+    const mmPerPx = usableWidthMM / canvas.width;
+    const pageHeightPx = usableHeightMM / mmPerPx;
+    let srcY = 0;
+    while (srcY < canvas.height) {
+      const idealBottom = srcY + pageHeightPx;
+      let cutY = idealBottom;
+      if (idealBottom < canvas.height) {
+        const candidate = safeCuts.filter(p => p > srcY && p <= idealBottom);
+        if (candidate.length > 0) cutY = candidate[candidate.length - 1];
+      } else {
+        cutY = canvas.height;
       }
-      pdf.save(fileName);
-      showToast('PDF 3 rangkap berhasil didownload!');
-    } catch(err) {
-      showToast('Gagal membuat PDF: ' + err.message);
-    } finally {
-      restore();
+      const sliceHeightPx = cutY - srcY;
+      if (sliceHeightPx <= 0) { srcY = cutY + 1; continue; }
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = Math.ceil(sliceHeightPx);
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+      const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+      const sliceHeightMM = sliceHeightPx * mmPerPx;
+      if (srcY > 0) pdf.addPage();
+      pdf.addImage(sliceData, 'JPEG', marginX, marginTop, usableWidthMM, sliceHeightMM);
+      srcY = cutY;
     }
-  })();
+    pdf.save(fileName);
+    showToast('PDF berhasil didownload!');
+    restore();
+  }).catch(err => {
+    showToast('Gagal membuat PDF: ' + err.message);
+    restore();
+  });
 }
 
 // ===== UI FUNCTIONS =====
