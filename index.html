@@ -180,7 +180,7 @@
   /* PDF Preview */
   .pdf-preview-container { width: 100%; max-height: 60vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: #f5f5f5; margin: 14px 0; }
   .pdf-scale-outer { position: relative; overflow: hidden; }
-  .pdf-content { background: white; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); line-height: 1.6; color: var(--text); width: 700px; box-sizing: border-box; transform-origin: top left; }
+  .pdf-content { background: white; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); line-height: 1.6; color: var(--text); width: 700px; box-sizing: border-box; transform-origin: top left; display: flex; flex-direction: column; }
   .doc-header { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
   .doc-header .block { }
   .doc-header .block p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
@@ -1188,6 +1188,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pdfModal')">Tutup</button>
+      <button class="btn btn-outline" onclick="printDocNative('#pdfContent .pdf-content', 'Cetak Dokumen')">🖨️ Cetak</button>
       <button class="btn btn-primary" onclick="downloadPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -1285,6 +1286,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('sttpPdfModal')">Tutup</button>
+      <button class="btn btn-outline" onclick="printDocNative('#sttpPdfContent .pdf-content', 'Cetak Tanda Terima')">🖨️ Cetak</button>
       <button class="btn btn-primary" onclick="downloadSttpPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -3778,6 +3780,7 @@ function generatePDFPreview(type) {
   else sigLabels = ['Dibuat Oleh', `Diterima (${partyName})`];
 
   const signatureHtml = `
+    <div style="flex:1 1 auto;min-height:20px"></div>
     <div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
       <div style="text-align:center">
         <div style="height:50px"></div>
@@ -3877,6 +3880,56 @@ window.addEventListener('orientationchange', () => {
     setTimeout(scalePdfPreview, 200);
   }
 });
+
+function printDocNative(sourceSelector, docTitle) {
+  const sourceEl = document.querySelector(sourceSelector);
+  if (!sourceEl) {
+    showToast('Tidak ada dokumen untuk dicetak. Buka Preview PDF terlebih dahulu.');
+    return;
+  }
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
+    return;
+  }
+  printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${docTitle}</title>
+<style>
+  @page { size: A4; margin: 12mm 10mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1A1A2E; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  img { max-width: 100%; }
+  table { border-collapse: collapse; }
+  .pdf-content {
+    width: auto !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    transform: none !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 263mm;
+  }
+  @media print {
+    .pdf-content { min-height: 263mm; }
+  }
+</style>
+</head>
+<body>${sourceEl.outerHTML}</body>
+</html>`);
+  printWindow.document.close();
+  printWindow.onload = function () {
+    setTimeout(function () {
+      printWindow.focus();
+      printWindow.print();
+    }, 200);
+  };
+}
 
 function downloadPDF() {
   const typeLabels = { po: 'PO-Outlet', so: 'Surat-Jalan', inv: 'Invoice' };
@@ -4697,6 +4750,7 @@ function generateSttpPreview(sttp) {
       ` : ''}
 
       <!-- TANDA TANGAN -->
+      <div style="flex:1 1 auto;min-height:20px"></div>
       <div style="display:flex;justify-content:space-between;margin-top:50px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
         <div style="text-align:center">
           <div style="font-size:11px;color:#888;margin-bottom:48px">Pengirim,</div>
