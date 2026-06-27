@@ -3633,10 +3633,10 @@ function generatePDFPreview(type) {
   let itemRows = doc.items.map((item, idx) => {
     const subtotal = item.qty * item.price;
     return `<tr style="border-bottom:2px solid #000000">
-      <td style="padding:14px 12px;font-size:14px;font-weight:700;color:#000000;background:#ffffff">${item.name}</td>
-      <td style="text-align:center;padding:14px 12px;font-size:14px;font-weight:700;color:#000000;background:#ffffff">${item.qty} ${item.uom || 'pcs'}</td>
-      <td style="text-align:right;padding:14px 12px;font-size:14px;font-weight:700;color:#000000;background:#ffffff">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
-      <td style="text-align:right;padding:14px 12px;font-size:14px;font-weight:700;color:#000000;background:#ffffff">Rp ${subtotal.toLocaleString('id-ID')}</td>
+      <td style="padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">${item.name}</td>
+      <td style="text-align:center;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">${item.qty} ${item.uom || 'pcs'}</td>
+      <td style="text-align:right;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
+      <td style="text-align:right;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">Rp ${subtotal.toLocaleString('id-ID')}</td>
     </tr>`;
   }).join('');
   
@@ -3810,13 +3810,13 @@ function generatePDFPreview(type) {
       </div>
       
       <!-- TABEL ITEM — kolom seragam untuk semua tipe -->
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;border-top:2px solid #000000;border-bottom:2px solid #000000">
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;border-top:3px solid #000000;border-bottom:3px solid #000000">
         <thead>
           <tr style="background:#ffffff">
-            <th style="text-align:left;padding:14px 12px;font-size:14px;color:#000000;background:#ffffff;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000000">Nama Barang</th>
-            <th style="text-align:center;padding:14px 12px;font-size:14px;color:#000000;background:#ffffff;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000000">Qty / UOM</th>
-            <th style="text-align:right;padding:14px 12px;font-size:14px;color:#000000;background:#ffffff;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000000">Harga Satuan</th>
-            <th style="text-align:right;padding:14px 12px;font-size:14px;color:#000000;background:#ffffff;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000000">Subtotal</th>
+            <th style="text-align:left;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Nama Barang</th>
+            <th style="text-align:center;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Qty / UOM</th>
+            <th style="text-align:right;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Harga Satuan</th>
+            <th style="text-align:right;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Subtotal</th>
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
