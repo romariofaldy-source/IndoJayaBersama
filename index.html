@@ -5058,8 +5058,11 @@ function downloadDotMatrixPDF(containerId) {
     wrapper.remove();
   };
 
+  // RENDER_SCALE dinaikkan biar teks lebih tajam (mendekati hasil cetak langsung)
+  const RENDER_SCALE = 3;
+
   html2canvas(inner, {
-    scale: 2,
+    scale: RENDER_SCALE,
     useCORS: true,
     backgroundColor: '#ffffff',
     windowWidth: CAPTURE_WIDTH
@@ -5080,7 +5083,7 @@ function downloadDotMatrixPDF(containerId) {
     inner.querySelectorAll('tr, .pdf-footer').forEach(node => {
       const r = node.getBoundingClientRect();
       if (r.height === 0) return;
-      safeCuts.add(Math.round((r.bottom - elTop) * 2));
+      safeCuts.add(Math.round((r.bottom - elTop) * RENDER_SCALE));
     });
     const cutPoints = Array.from(safeCuts).sort((a, b) => a - b);
 
@@ -5100,7 +5103,7 @@ function downloadDotMatrixPDF(containerId) {
       ctx.fillRect(0, 0, sc.width, sc.height);
       ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
       if (srcY > 0) pdf.addPage();
-      pdf.addImage(sc.toDataURL('image/jpeg', 0.98), 'JPEG', mx, mt, usableW, sliceH * mmPerPx);
+      pdf.addImage(sc.toDataURL('image/png'), 'PNG', mx, mt, usableW, sliceH * mmPerPx);
       srcY = cutY;
     }
 
