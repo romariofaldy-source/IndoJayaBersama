@@ -180,12 +180,12 @@
   /* PDF Preview */
   .pdf-preview-container { width: 100%; max-height: 60vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: #f5f5f5; margin: 14px 0; }
   .pdf-scale-outer { position: relative; overflow: hidden; }
-  .pdf-content { background: white; padding: 40px; box-shadow: none; line-height: 1.8; color: #000000; width: 700px; box-sizing: border-box; transform-origin: top left; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; min-height: 1000px; }
+  .pdf-content { background: white; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); line-height: 1.6; color: var(--text); width: 700px; box-sizing: border-box; transform-origin: top left; }
   .doc-header { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
   .doc-header .block { }
   .doc-header .block p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
   .doc-header .block strong { font-size: 14px; display: block; margin-bottom: 8px; }
-  .pdf-footer { padding: 20px 0; border-top: 2px solid #000000; margin-top: 20px; font-size: 12px; color: #000000; font-weight: bold; }
+  .pdf-footer { padding: 20px 0; border-top: 1px solid var(--border); margin-top: 20px; font-size: 11px; color: var(--text-muted); }
 
   /* Popular Items Grid */
   .popular-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
@@ -280,7 +280,7 @@
   body.dark-mode .modal-overlay { background: rgba(0,0,0,0.6); }
   body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
   body.dark-mode .toast { background: #2c2c3a; color: #ECECF5; }
-  body.dark-mode .pdf-content { background: #ffffff; color: #000000; font-family: 'Courier New', Courier, monospace; }
+  body.dark-mode .pdf-content { background: #fff; color: #1A1A2E; }
   body.dark-mode .logo-preview { background: var(--bg); }
   body.dark-mode .slider:before { background-color: #ECECF5; }
 </style>
@@ -1186,6 +1186,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pdfModal')">Tutup</button>
+      <button class="btn btn-success" onclick="printDoc('pdfContent')">🖨️ Cetak (Dot Matrix)</button>
       <button class="btn btn-primary" onclick="downloadPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -1275,6 +1276,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('sttpPdfModal')">Tutup</button>
+      <button class="btn btn-success" onclick="printDoc('sttpPdfContent')">🖨️ Cetak (Dot Matrix)</button>
       <button class="btn btn-primary" onclick="downloadSttpPDF()">⬇️ Download PDF</button>
     </div>
   </div>
@@ -3632,11 +3634,12 @@ function generatePDFPreview(type) {
   // Unified item rows — semua tipe tampilkan: Nama, Qty+UOM, Harga Satuan, Subtotal
   let itemRows = doc.items.map((item, idx) => {
     const subtotal = item.qty * item.price;
-    return `<tr style="border-bottom:2px solid #000000">
-      <td style="padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">${item.name}</td>
-      <td style="text-align:center;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">${item.qty} ${item.uom || 'pcs'}</td>
-      <td style="text-align:right;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
-      <td style="text-align:right;padding:16px 14px;font-size:16px;font-weight:900;color:#000000;background:#ffffff;letter-spacing:0.5px">Rp ${subtotal.toLocaleString('id-ID')}</td>
+    const bg = idx % 2 === 1 ? 'background:#F8F6FF' : '';
+    return `<tr style="${bg}">
+      <td style="padding:10px 12px">${item.name}</td>
+      <td style="text-align:center;padding:10px 12px">${item.qty} ${item.uom || 'pcs'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
+      <td style="text-align:right;padding:10px 12px">Rp ${subtotal.toLocaleString('id-ID')}</td>
     </tr>`;
   }).join('');
   
@@ -3647,20 +3650,20 @@ function generatePDFPreview(type) {
       <div style="display:flex;justify-content:flex-end;margin-top:16px">
         <table style="border-collapse:collapse;min-width:280px">
           <tr>
-            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">Subtotal</td>
-            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">Rp ${total.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">Subtotal</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">Rp ${total.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">Diskon</td>
-            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">- Rp ${discount.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">Diskon</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">- Rp ${discount.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:6px 16px;color:#000000;font-size:13px;font-weight:bold">PPN</td>
-            <td style="padding:6px 16px;text-align:right;font-size:13px;font-weight:bold">Rp ${ppn.toLocaleString('id-ID')}</td>
+            <td style="padding:6px 16px;color:#8A8A9A;font-size:13px">PPN</td>
+            <td style="padding:6px 16px;text-align:right;font-size:13px">Rp ${ppn.toLocaleString('id-ID')}</td>
           </tr>
-          <tr style="border-top:2px solid #000000">
-            <td style="padding:10px 16px;font-weight:700;font-size:14px;color:#000000">TOTAL</td>
-            <td style="padding:10px 16px;text-align:right;font-weight:700;font-size:16px;color:#000000">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+          <tr style="border-top:2px solid #1E5A96">
+            <td style="padding:10px 16px;font-weight:700;font-size:14px">TOTAL</td>
+            <td style="padding:10px 16px;text-align:right;font-weight:700;font-size:16px;color:#1E5A96">Rp ${grandTotal.toLocaleString('id-ID')}</td>
           </tr>
         </table>
       </div>
@@ -3670,7 +3673,7 @@ function generatePDFPreview(type) {
   // Info tanggal tambahan di header (hanya PO yang masih pakai TGL KIRIM di sini)
   let extraDateHtml = '';
   if (type === 'po' && doc.deliveryDate) {
-    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#000000;font-weight:bold">TGL KIRIM</p><p style="margin:2px 0;font-weight:700;color:#000000">${new Date(doc.deliveryDate).toLocaleDateString('id-ID')}</p>`;
+    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#8A8A9A">TGL KIRIM</p><p style="margin:2px 0;font-weight:600">${new Date(doc.deliveryDate).toLocaleDateString('id-ID')}</p>`;
   }
 
   // Detail kanan — sejajar dengan nama & alamat pihak yang dituju
@@ -3681,17 +3684,17 @@ function generatePDFPreview(type) {
     const tglOrder = poRef?.date || doc.date;
     const tglKirim = doc.date;
     let rows = '';
-    if (doc.poNo) rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">No PO: <strong>${doc.poNo}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">Tanggal Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">Tanggal Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
+    if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${doc.poNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
     detailRightHtml = rows;
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
     const refPoNo = soRecord?.poNo || doc.poNo || null;
     let rows = '';
-    if (refPoNo) rows += `<p style="font-size:12px;color:#000000;margin-top:6px;font-weight:bold">No PO: <strong>${refPoNo}</strong></p>`;
-    if (doc.soNo) rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">No SJ: <strong>${doc.soNo}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#000000;margin-top:2px;font-weight:bold">Term Payment: <strong>7 Hari</strong></p>`;
+    if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${refPoNo}</strong></p>`;
+    if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No SJ: <strong>${doc.soNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Term Payment: <strong>7 Hari</strong></p>`;
     detailRightHtml = rows;
   }
 
@@ -3699,9 +3702,9 @@ function generatePDFPreview(type) {
   let catatanHtml = '';
   if (isSJ) {
     catatanHtml = `
-      <div style="width:80%;margin-top:20px;padding:14px 16px;border:2px solid #000000;border-radius:0;background:white">
-        <div style="font-size:13px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
-        <div style="font-size:13px;color:#000000;font-weight:bold">${doc.notes || '-'}</div>
+      <div style="width:80%;margin-top:20px;padding:14px 16px;border:1px solid #BBDEFB;border-radius:10px;background:#FAFAFE">
+        <div style="font-size:12px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
+        <div style="font-size:13px;color:#555">${doc.notes || '-'}</div>
       </div>
     `;
   }
@@ -3712,26 +3715,26 @@ function generatePDFPreview(type) {
   if (isInv) {
     terbilangHtml = `
       <div style="display:flex;justify-content:center;align-items:flex-start;gap:32px;margin-top:16px">
-        <div style="max-width:340px;min-width:300px;padding:14px 18px;border:2px solid #000000;border-radius:0;background:white;margin-top:20px">
-          <div style="font-size:12px;color:#000000;margin-bottom:4px;font-weight:bold">TERBILANG</div>
-          <div style="font-weight:700;font-size:13px;color:#000000">${terbilang(grandTotal)}</div>
+        <div style="max-width:340px;min-width:300px;padding:14px 18px;border:1px solid #BBDEFB;border-radius:7px;background:#FAFAFE;margin-top:20px">
+          <div style="font-size:12px;color:#8A8A9A;margin-bottom:4px">Terbilang</div>
+          <div style="font-weight:700;font-size:13px;color:#1A1A2E">${terbilang(grandTotal)}</div>
         </div>
         <table style="border-collapse:collapse">
           <tr>
-            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">Subtotal</td>
-            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">Rp ${total.toLocaleString('id-ID')}</td>
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">Subtotal</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">Rp ${total.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">Diskon</td>
-            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">- Rp ${discount.toLocaleString('id-ID')}</td>
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">Diskon</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">- Rp ${discount.toLocaleString('id-ID')}</td>
           </tr>
-          <tr style="border-bottom:2px solid #000000">
-            <td style="padding:4px 8px;text-align:right;color:#000000;font-size:13px;font-weight:bold">PPN</td>
-            <td style="padding:4px 8px;text-align:right;font-size:13px;font-weight:bold">Rp ${ppn.toLocaleString('id-ID')}</td>
+          <tr style="border-bottom:2px solid #1E5A96">
+            <td style="padding:4px 8px;text-align:right;color:#8A8A9A;font-size:13px">PPN</td>
+            <td style="padding:4px 8px;text-align:right;font-size:13px">Rp ${ppn.toLocaleString('id-ID')}</td>
           </tr>
           <tr>
-            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:14px;color:#000000">TOTAL</td>
-            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:16px;color:#000000">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:14px">TOTAL</td>
+            <td style="padding:8px 8px 4px;text-align:right;font-weight:700;font-size:16px;color:#1E5A96">Rp ${grandTotal.toLocaleString('id-ID')}</td>
           </tr>
         </table>
       </div>
@@ -3742,12 +3745,12 @@ function generatePDFPreview(type) {
     const accountHolder = paymentData.accountHolder || 'KHANSA DWI AGUSTINA';
     paymentHtml = `
       <div style="display:flex;justify-content:flex-start;margin-top:14px">
-        <div style="padding:8px 10px;border:2px solid #000000;border-radius:0;background:white;max-width:240px">
-          <div style="font-size:11px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">PAYMENT</div>
-          <table style="border-collapse:collapse;font-size:11px">
-            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">Nama Bank</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${bankName}</td></tr>
-            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">No Rekening</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${accountNumber}</td></tr>
-            <tr><td style="padding:1px 6px 1px 0;color:#000000;white-space:nowrap;font-size:11px;font-weight:bold">Atas Nama</td><td style="padding:1px 0;font-weight:700;font-size:11px">: ${accountHolder}</td></tr>
+        <div style="padding:8px 10px;border:1px solid #BBDEFB;border-radius:6px;background:#FAFAFE;max-width:240px">
+          <div style="font-size:10px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Payment</div>
+          <table style="border-collapse:collapse;font-size:10px">
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">Nama Bank</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${bankName}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">No Rekening</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${accountNumber}</td></tr>
+            <tr><td style="padding:1px 6px 1px 0;color:#8A8A9A;white-space:nowrap;font-size:10px">Atas Nama</td><td style="padding:1px 0;font-weight:600;font-size:10px">: ${accountHolder}</td></tr>
           </table>
         </div>
       </div>
@@ -3761,14 +3764,14 @@ function generatePDFPreview(type) {
   else sigLabels = ['Dibuat Oleh', `Diterima (${partyName})`];
 
   const signatureHtml = `
-    <div style="display:flex;justify-content:space-between;margin-top:auto;padding-top:40px;border-top:2px solid #000000;font-size:13px;color:#000000;font-weight:bold">
+    <div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
       <div style="text-align:center">
-        <div style="height:60px"></div>
-        <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${sigLabels[0]}</div>
+        <div style="height:50px"></div>
+        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[0]}</div>
       </div>
       <div style="text-align:center">
-        <div style="height:60px"></div>
-        <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${sigLabels[1]}</div>
+        <div style="height:50px"></div>
+        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[1]}</div>
       </div>
     </div>
   `;
@@ -3777,20 +3780,20 @@ function generatePDFPreview(type) {
   pdfContent.innerHTML = `
     <div class="pdf-content">
       <!-- HEADER: Logo + Nama Perusahaan kiri | Judul Dokumen kanan -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #000000;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #1E5A96;gap:16px">
         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
-          ${logo ? `<img src="${logo}" style="width:56px;height:56px;border-radius:4px;object-fit:cover;flex-shrink:0">` : '<div style="width:56px;height:56px;border-radius:4px;background:#ffffff;display:flex;align-items:center;justify-content:center;color:#000000;font-weight:700;font-size:18px;flex-shrink:0;border:2px solid #000000">IJ</div>'}
+          ${logo ? `<img src="${logo}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0">` : '<div style="width:64px;height:64px;border-radius:8px;background:#E3F2FD;display:flex;align-items:center;justify-content:center;color:#1E5A96;font-weight:700;font-size:20px;flex-shrink:0">IJ</div>'}
           <div style="min-width:0">
-            <div style="font-size:18px;font-weight:700;color:#000000;word-break:break-word;overflow-wrap:break-word">${profile.name}</div>
-            ${profile.address ? `<div style="font-size:12px;color:#000000;margin-top:2px;word-break:break-word;overflow-wrap:break-word">${profile.address}</div>` : ''}
-            ${profile.phone ? `<div style="font-size:12px;color:#000000;word-break:break-word;overflow-wrap:break-word">Telp: ${profile.phone}</div>` : ''}
+            <div style="font-size:17px;font-weight:700;color:#1A1A2E;word-break:break-word;overflow-wrap:break-word">${profile.name}</div>
+            ${profile.address ? `<div style="font-size:11px;color:#8A8A9A;margin-top:2px;word-break:break-word;overflow-wrap:break-word">${profile.address}</div>` : ''}
+            ${profile.phone ? `<div style="font-size:11px;color:#8A8A9A;word-break:break-word;overflow-wrap:break-word">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <h1 style="color:#000000;font-size:${type === 'po' ? 24 : (isInv ? 42 : 32)}px;margin:0 0 4px;font-weight:700">${typeLabels[type]}</h1>
-          <p style="margin:0;font-size:14px;font-weight:700;color:#000000">${doc.no}</p>
-          <p style="margin:8px 0 0;font-size:12px;color:#000000;font-weight:bold">TANGGAL</p>
-          <p style="margin:2px 0;font-weight:700;font-size:13px">${new Date(doc.date).toLocaleDateString('id-ID')}</p>
+          <h1 style="color:#1E5A96;font-size:${type === 'po' ? 22 : (isInv ? 40 : 30)}px;margin:0 0 4px">${typeLabels[type]}</h1>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${doc.no}</p>
+          <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL</p>
+          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(doc.date).toLocaleDateString('id-ID')}</p>
           ${extraDateHtml}
         </div>
       </div>
@@ -3798,28 +3801,28 @@ function generatePDFPreview(type) {
       <!-- INFO: Pihak & Detail Dokumen -->
       <div class="doc-header" style="margin-bottom:20px">
         <div>
-          <p style="font-size:12px;color:#000000;text-transform:uppercase;margin-bottom:4px;font-weight:bold">${partyLabel}</p>
-          <strong style="font-size:16px;color:#000000">${partyName}</strong>
-          ${partyAddr ? `<p style="font-size:12px;color:#000000;margin-top:4px">${partyAddr}</p>` : ''}
-          ${partyPhone ? `<p style="font-size:12px;color:#000000">Telp: ${partyPhone}</p>` : ''}
+          <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:4px">${partyLabel}</p>
+          <strong style="font-size:15px">${partyName}</strong>
+          ${partyAddr ? `<p style="font-size:12px;color:#8A8A9A;margin-top:4px">${partyAddr}</p>` : ''}
+          ${partyPhone ? `<p style="font-size:12px;color:#8A8A9A">Telp: ${partyPhone}</p>` : ''}
         </div>
         <div style="text-align:right">
           ${detailRightHtml}
-          ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#000000;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
+          ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#8A8A9A;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
         </div>
       </div>
       
       <!-- TABEL ITEM — kolom seragam untuk semua tipe -->
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;border-top:3px solid #000000;border-bottom:3px solid #000000">
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #BBDEFB;border-radius:8px;overflow:hidden">
         <thead>
-          <tr style="background:#ffffff">
-            <th style="text-align:left;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Nama Barang</th>
-            <th style="text-align:center;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Qty / UOM</th>
-            <th style="text-align:right;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Harga Satuan</th>
-            <th style="text-align:right;padding:16px 14px;font-size:16px;color:#000000;background:#ffffff;font-weight:900;text-transform:uppercase;border-bottom:3px solid #000000;letter-spacing:0.5px">Subtotal</th>
+          <tr style="background:#0F2D52">
+            <th style="text-align:left;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Nama Barang</th>
+            <th style="text-align:center;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Qty / UOM</th>
+            <th style="text-align:right;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Harga Satuan</th>
+            <th style="text-align:right;padding:12px;font-size:12px;color:#ffffff;background:#0F2D52;text-transform:uppercase;letter-spacing:0.5px">Subtotal</th>
           </tr>
         </thead>
-        <tbody>${itemRows}</tbody>
+        <tbody style="border-top:2px solid #0F2D52">${itemRows}</tbody>
       </table>
       
       ${totalsHtml}
@@ -4551,60 +4554,60 @@ function generateSttpPreview(sttp) {
   pdfContent.innerHTML = `
     <div class="pdf-content">
       <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #000000;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #1E5A96;gap:16px">
         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
           ${logo
-            ? `<img src="${logo}" style="width:56px;height:56px;border-radius:4px;object-fit:cover;flex-shrink:0">`
-            : `<div style="width:56px;height:56px;border-radius:4px;background:#ffffff;display:flex;align-items:center;justify-content:center;color:#000000;font-weight:700;font-size:18px;flex-shrink:0;border:2px solid #000000">IJ</div>`
+            ? `<img src="${logo}" style="width:72px;height:72px;border-radius:8px;object-fit:cover;flex-shrink:0">`
+            : `<div style="width:72px;height:72px;border-radius:8px;background:#E3F2FD;display:flex;align-items:center;justify-content:center;color:#1E5A96;font-weight:700;font-size:22px;flex-shrink:0">IJ</div>`
           }
           <div style="min-width:0">
-            <div style="font-size:18px;font-weight:700;color:#000000;word-break:break-word">${profile.name}</div>
-            ${profile.address ? `<div style="font-size:12px;color:#000000;margin-top:2px;word-break:break-word">${profile.address}</div>` : ''}
-            ${profile.phone ? `<div style="font-size:12px;color:#000000">Telp: ${profile.phone}</div>` : ''}
+            <div style="font-size:17px;font-weight:700;color:#1A1A2E;word-break:break-word">${profile.name}</div>
+            ${profile.address ? `<div style="font-size:11px;color:#8A8A9A;margin-top:2px;word-break:break-word">${profile.address}</div>` : ''}
+            ${profile.phone ? `<div style="font-size:11px;color:#8A8A9A">Telp: ${profile.phone}</div>` : ''}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <h1 style="color:#000000;font-size:24px;font-weight:800;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px">TANDA TERIMA</h1>
-          <p style="margin:0;font-size:14px;font-weight:700;color:#000000">${sttp.no}</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#000000;font-weight:bold">TANGGAL PENGIRIMAN</p>
-          <p style="margin:2px 0;font-weight:700;font-size:13px;color:#000000">${new Date(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
+          <h1 style="color:#1E5A96;font-size:20px;font-weight:800;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px">Tanda Terima</h1>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${sttp.no}</p>
+          <p style="margin:6px 0 0;font-size:11px;color:#8A8A9A">TANGGAL PENGIRIMAN</p>
+          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
         </div>
       </div>
 
       <!-- UNTUK / KEPADA & DOKUMEN DIKIRIM -->
       <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px">
         <div>
-          <p style="font-size:12px;color:#000000;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.4px;font-weight:bold">UNTUK YTH (PENERIMA)</p>
-          ${sttp.ptName ? `<strong style="font-size:16px;color:#000000;display:block;margin-bottom:2px">${sttp.ptName}</strong>` : ''}
-          <strong style="font-size:15px;color:#000000;display:block;margin-bottom:4px">${custName}</strong>
-          ${custAddr ? `<p style="font-size:12px;color:#000000;margin:2px 0">📍 ${custAddr}</p>` : ''}
-          ${custPhone ? `<p style="font-size:12px;color:#000000;margin:2px 0">📞 ${custPhone}</p>` : ''}
+          <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.4px">Untuk Yth (Penerima)</p>
+          ${sttp.ptName ? `<strong style="font-size:15px;color:#1A1A2E;display:block;margin-bottom:2px">${sttp.ptName}</strong>` : ''}
+          <strong style="font-size:14px;color:#1A1A2E;display:block;margin-bottom:4px">${custName}</strong>
+          ${custAddr ? `<p style="font-size:12px;color:#666;margin:2px 0">📍 ${custAddr}</p>` : ''}
+          ${custPhone ? `<p style="font-size:12px;color:#666;margin:2px 0">📞 ${custPhone}</p>` : ''}
         </div>
         ${invRefHtml}
       </div>
 
       <!-- CATATAN -->
       ${sttp.notes ? `
-      <div style="margin:16px 0;padding:14px 16px;border:2px solid #000000;border-radius:0;background:white">
-        <div style="font-size:12px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">CATATAN</div>
-        <div style="font-size:13px;color:#000000;font-weight:bold">${sttp.notes}</div>
+      <div style="margin:16px 0;padding:14px 16px;border:1px solid #BBDEFB;border-radius:10px;background:#FAFAFE">
+        <div style="font-size:11px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
+        <div style="font-size:13px;color:#555">${sttp.notes}</div>
       </div>
       ` : ''}
 
       <!-- TANDA TANGAN -->
-      <div style="display:flex;justify-content:space-between;margin-top:auto;padding-top:40px;border-top:2px solid #000000;font-size:13px;color:#000000;font-weight:bold">
+      <div style="display:flex;justify-content:space-between;margin-top:50px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
         <div style="text-align:center">
-          <div style="font-size:12px;color:#000000;margin-bottom:60px;font-weight:bold">PENGIRIM,</div>
-          <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${profile.name}</div>
+          <div style="font-size:11px;color:#888;margin-bottom:48px">Pengirim,</div>
+          <div style="border-top:1px solid #333;width:180px;padding-top:6px">${profile.name}</div>
         </div>
         <div style="text-align:center">
-          <div style="font-size:12px;color:#000000;margin-bottom:60px;font-weight:bold">PENERIMA,</div>
-          <div style="border-top:2px solid #000000;width:200px;padding-top:8px">${custName}</div>
+          <div style="font-size:11px;color:#888;margin-bottom:48px">Penerima,</div>
+          <div style="border-top:1px solid #333;width:180px;padding-top:6px">${custName}</div>
         </div>
       </div>
 
       <!-- FOOTER -->
-      <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:2px solid #000000;font-size:11px;color:#000000;font-weight:bold">
+      <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #eee;font-size:10px;color:#aaa">
         Dokumen ini merupakan bukti penerimaan dokumen invoice dari ${profile.name}
       </div>
     </div>
@@ -4698,6 +4701,151 @@ function downloadSttpPDF() {
       showToast('Gagal membuat PDF: ' + err.message);
       restore();
     });
+}
+
+// ===== CETAK DOT MATRIX (Epson LX-310) =====
+function printDoc(containerId) {
+  const contentEl = document.querySelector('#' + containerId + ' .pdf-content');
+  if (!contentEl) { showToast('Tidak ada dokumen untuk dicetak. Buka Preview terlebih dahulu.'); return; }
+
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) { showToast('Popup diblokir browser. Izinkan popup untuk mencetak.'); return; }
+
+  // Clone konten agar bisa dimodifikasi tanpa merusak tampilan asli
+  const clone = contentEl.cloneNode(true);
+
+  // Hapus background color dan shadow dari semua elemen di dalam clone
+  clone.querySelectorAll('*').forEach(el => {
+    el.style.boxShadow = 'none';
+    el.style.textShadow = 'none';
+    // Jaga warna teks hitam, buang background warna-warni
+    const bg = el.style.backgroundColor;
+    if (bg && bg !== 'rgb(255, 255, 255)' && bg !== '#ffffff' && bg !== 'white') {
+      el.style.backgroundColor = 'transparent';
+    }
+    // Reset warna teks ke hitam kecuali elemen header tabel (biru gelap)
+    if (!el.matches('th') && !el.matches('[style*="background:#0F2D52"]') && !el.matches('[style*="background:#1E5A96"]')) {
+      const color = el.style.color;
+      if (color && color !== 'rgb(0,0,0)') el.style.color = '#000000';
+    }
+  });
+
+  // Ubah header tabel agar tetap terbaca di dot matrix (hitam putih)
+  clone.querySelectorAll('th').forEach(th => {
+    th.style.background = '#000000';
+    th.style.color = '#ffffff';
+    th.style.webkitPrintColorAdjust = 'exact';
+    th.style.printColorAdjust = 'exact';
+  });
+
+  printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Cetak Dokumen</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11pt;
+      color: #000;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ===== KONTEN UTAMA ===== */
+    .pdf-content {
+      width: 100% !important;
+      padding: 10mm 12mm !important;
+      box-shadow: none !important;
+      transform: none !important;
+      background: #fff !important;
+      color: #000 !important;
+      font-family: 'Courier New', Courier, monospace !important;
+      font-size: 11pt !important;
+      line-height: 1.4 !important;
+    }
+
+    /* ===== TABEL ===== */
+    table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+      font-size: 10pt !important;
+      font-family: 'Courier New', Courier, monospace !important;
+    }
+    th {
+      background: #000 !important;
+      color: #fff !important;
+      padding: 5px 8px !important;
+      font-size: 9.5pt !important;
+      text-align: left !important;
+      border: 1px solid #000 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    td {
+      padding: 5px 8px !important;
+      border: 1px solid #000 !important;
+      font-size: 10pt !important;
+      color: #000 !important;
+      background: transparent !important;
+    }
+    tr:nth-child(even) td {
+      background: #f5f5f5 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* ===== HEADER DOKUMEN ===== */
+    .doc-header {
+      display: flex !important;
+      justify-content: space-between !important;
+      gap: 20px !important;
+      margin-bottom: 16px !important;
+      padding-bottom: 12px !important;
+      border-bottom: 2px solid #000 !important;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h1, h2, h3, strong, b {
+      font-family: 'Courier New', Courier, monospace !important;
+      color: #000 !important;
+    }
+    p, span, div, li {
+      font-family: 'Courier New', Courier, monospace !important;
+      color: #000 !important;
+    }
+
+    /* ===== BUANG ELEMEN TIDAK PERLU ===== */
+    .badge { background: transparent !important; border: 1px solid #000 !important; color: #000 !important; padding: 1px 4px !important; border-radius: 3px !important; }
+    img { max-width: 80px !important; height: auto !important; }
+
+    /* ===== PRINT SETTINGS ===== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm 10mm 12mm;
+      }
+      body { margin: 0; }
+      .pdf-content { padding: 0 !important; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  ${clone.outerHTML}
+  <script>
+    window.onload = function() {
+      window.print();
+      setTimeout(function() { window.close(); }, 1500);
+    };
+  <\/script>
+</body>
+</html>`);
+  printWin.document.close();
 }
 
 // ===== INIT =====
