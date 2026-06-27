@@ -3760,18 +3760,20 @@ function generatePDFPreview(type) {
   // Tanda tangan — semua tipe (PO: Dibuat & Disetujui, SJ: Pengirim & Penerima, INV: Dibuat & Diterima)
   let sigLabels;
   if (type === 'po') sigLabels = ['Dibuat Oleh', 'Disetujui Oleh'];
-  else if (isSJ) sigLabels = [`Pengirim${doc.driver ? ' (' + doc.driver + ')' : ''}`, `Penerima (${partyName})`];
-  else sigLabels = ['Dibuat Oleh', `Diterima (${partyName})`];
+  else if (isSJ) sigLabels = [`Pengirim${doc.driver ? ' (' + doc.driver + ')' : ''}`, `Penerima`];
+  else sigLabels = ['Dibuat Oleh', `Diterima`];
 
   const signatureHtml = `
-    <div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px solid #E0E0E0;font-size:12px;color:#555">
+    <div style="display:flex;justify-content:space-between;margin-top:34px;font-size:12px;color:#555">
       <div style="text-align:center">
-        <div style="height:50px"></div>
-        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[0]}</div>
+        <div style="margin-bottom:0">${sigLabels[0]}</div>
+        <div style="height:80px"></div>
+        <div style="border-top:1px solid #333;width:160px;margin:0 auto"></div>
       </div>
       <div style="text-align:center">
-        <div style="height:50px"></div>
-        <div style="border-top:1px solid #333;width:160px;padding-top:6px">${sigLabels[1]}</div>
+        <div style="margin-bottom:0">${sigLabels[1]}</div>
+        <div style="height:80px"></div>
+        <div style="border-top:1px solid #333;width:160px;margin:0 auto"></div>
       </div>
     </div>
   `;
@@ -4919,10 +4921,11 @@ function buildDotMatrixClone(containerId) {
 // Pindahkan label Pengirim/Penerima/Dibuat Oleh/dll ke ATAS, kasih space kosong
 // untuk TTD, lalu garis tanda tangan ditaruh PALING BAWAH (tanpa teks di bawah garis)
 function restructureSignatureForDotMatrix(clone) {
+  console.log('🟢 DOT-MATRIX-SIGNATURE-FIX v3 aktif');
   const containers = Array.from(clone.querySelectorAll('div')).filter(d => {
-    const s = d.getAttribute('style') || '';
-    return s.includes('justify-content:space-between') && s.includes('border-top');
+    return d.style.justifyContent === 'space-between' && d.style.borderTopStyle === 'solid';
   });
+  console.log('Container TTD ditemukan:', containers.length);
 
   containers.forEach(container => {
     // Hilangkan garis pemisah di atas seluruh blok TTD, kasih jarak dari konten sebelumnya
