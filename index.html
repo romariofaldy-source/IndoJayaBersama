@@ -3632,12 +3632,11 @@ function generatePDFPreview(type) {
   // Unified item rows — semua tipe tampilkan: Nama, Qty+UOM, Harga Satuan, Subtotal
   let itemRows = doc.items.map((item, idx) => {
     const subtotal = item.qty * item.price;
-    const bg = idx % 2 === 1 ? 'background:#F8F6FF' : '';
-    return `<tr style="${bg}">
-      <td style="padding:10px 12px">${item.name}</td>
-      <td style="text-align:center;padding:10px 12px">${item.qty} ${item.uom || 'pcs'}</td>
-      <td style="text-align:right;padding:10px 12px">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
-      <td style="text-align:right;padding:10px 12px">Rp ${subtotal.toLocaleString('id-ID')}</td>
+    return `<tr style="border-bottom:1px solid #000000">
+      <td style="padding:12px;font-size:13px;font-weight:700;color:#000000;background:#ffffff;border-right:1px solid #000000;border-left:1px solid #000000">${item.name}</td>
+      <td style="text-align:center;padding:12px;font-size:13px;font-weight:700;color:#000000;background:#ffffff;border-right:1px solid #000000">${item.qty} ${item.uom || 'pcs'}</td>
+      <td style="text-align:right;padding:12px;font-size:13px;font-weight:700;color:#000000;background:#ffffff;border-right:1px solid #000000">Rp ${item.price?.toLocaleString('id-ID') || '0'}</td>
+      <td style="text-align:right;padding:12px;font-size:13px;font-weight:700;color:#000000;background:#ffffff;border-right:1px solid #000000">Rp ${subtotal.toLocaleString('id-ID')}</td>
     </tr>`;
   }).join('');
   
@@ -3814,10 +3813,10 @@ function generatePDFPreview(type) {
       <table style="width:100%;border-collapse:collapse;margin:16px 0;border:2px solid #000000">
         <thead>
           <tr style="background:#ffffff;border:2px solid #000000">
-            <th style="text-align:left;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Nama Barang</th>
-            <th style="text-align:center;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Qty / UOM</th>
-            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Harga Satuan</th>
-            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase">Subtotal</th>
+            <th style="text-align:left;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase;border-left:1px solid #000000;border-right:1px solid #000000">Nama Barang</th>
+            <th style="text-align:center;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase;border-right:1px solid #000000">Qty / UOM</th>
+            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase;border-right:1px solid #000000">Harga Satuan</th>
+            <th style="text-align:right;padding:12px;font-size:13px;color:#000000;background:#ffffff;font-weight:700;border:1px solid #000000;text-transform:uppercase;border-right:1px solid #000000">Subtotal</th>
           </tr>
         </thead>
         <tbody style="border:2px solid #000000">${itemRows}</tbody>
