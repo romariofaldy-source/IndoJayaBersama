@@ -4936,16 +4936,17 @@ function restructureSignatureForDotMatrix(clone) {
 
       const blankSpace = kids[0]; // div height:50px (space TTD lama)
       const labelLine = kids[1];  // div border-top + teks label (garis lama + label di bawahnya)
-      const labelText = (labelLine.textContent || '').trim();
+      // Hilangkan nama dalam kurung, misal "Penerima (KINKO CAFE & RESTO)" -> "Penerima"
+      const labelText = (labelLine.textContent || '').trim().replace(/\s*\([^)]*\)\s*$/, '');
 
       col.innerHTML = '';
 
       const labelDiv = document.createElement('div');
-      labelDiv.style.cssText = 'font-size:11px;color:#000;margin-bottom:6px';
+      labelDiv.style.cssText = 'font-size:11px;color:#000;margin-bottom:0';
       labelDiv.textContent = labelText;
 
       const spaceDiv = document.createElement('div');
-      spaceDiv.style.height = (blankSpace.style.height || '50px');
+      spaceDiv.style.height = '80px'; // space TTD yang cukup tinggi
 
       const lineDiv = document.createElement('div');
       lineDiv.style.cssText = 'border-top:1px solid #000;width:160px;margin:0 auto';
