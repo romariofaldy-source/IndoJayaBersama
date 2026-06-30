@@ -1351,6 +1351,15 @@ async function fetchCloudData() {
     if (snap.exists) {
       const cloud = snap.data() || {};
       appDataCache = Object.assign(emptyData(), cloud);
+      // Kalau sttps di Firestore kosong tapi localStorage punya data,
+      // ambil dari localStorage dan langsung sync ke Firestore
+      if ((!cloud.sttps || cloud.sttps.length === 0)) {
+        const localSttps = JSON.parse(localStorage.getItem('sttps') || '[]');
+        if (localSttps.length > 0) {
+          appDataCache.sttps = localSttps;
+          cloudDocRef.set(appDataCache).catch(err => console.error('Gagal sync sttps ke cloud:', err));
+        }
+      }
     } else {
       // Belum ada data di cloud — coba migrasi dari localStorage (kalau ada data lama di device ini)
       const legacy = {
