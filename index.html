@@ -1499,7 +1499,21 @@ function rupiah(num) {
 
 function today() {
   const d = new Date();
-  return d.toISOString().split('T')[0];
+  // Pakai tanggal lokal (bukan UTC) supaya gak meleset di timezone WIB (UTC+7)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Parse date string YYYY-MM-DD sebagai tanggal LOKAL (bukan UTC)
+// Solusi: tambah T00:00:00 tanpa timezone supaya dibaca local time
+function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  // Kalau sudah ada T (datetime), parse biasa
+  if (dateStr.includes('T')) return new Date(dateStr);
+  return new Date(dateStr + 'T00:00:00');
+}
+
+function fmtDate(dateStr) {
+  return parseLocalDate(dateStr).toLocaleDateString('id-ID');
 }
 
 function generateNo(prefix) {
@@ -2489,7 +2503,7 @@ function renderPOs() {
     return `<tr>
       <td><strong>${po.no}</strong></td>
       <td>${supplier}</td>
-      <td>${new Date(po.date).toLocaleDateString('id-ID')}</td>
+      <td>${fmtDate(po.date)}</td>
       <td>${rupiah(total)}</td>
       <td><span class="badge ${badgeClass}">${po.status}</span></td>
       <td class="action-btns">
@@ -2622,7 +2636,7 @@ function renderMasuk() {
       <td>${supplier}</td>
       <td>${masuk.items.map(i => i.name).join(', ')}</td>
       <td>${masuk.items.reduce((sum, i) => sum + i.qtyReceived, 0)}</td>
-      <td>${new Date(masuk.date).toLocaleDateString('id-ID')}</td>
+      <td>${fmtDate(masuk.date)}</td>
       <td class="action-btns">
         <button class="btn btn-sm btn-danger" onclick="deleteMasuk(${masuk.id})">Hapus</button>
       </td>
@@ -2827,7 +2841,7 @@ function renderSOs() {
       <td><strong>${so.no}</strong></td>
       <td>${customer}</td>
       <td>${so.poNo || '-'}</td>
-      <td>${new Date(so.date).toLocaleDateString('id-ID')}</td>
+      <td>${fmtDate(so.date)}</td>
       <td>${so.items.length}</td>
       <td><span class="badge ${badgeClass}">${so.status}</span><br>${photoBadge}</td>
       <td class="action-btns">
@@ -3179,7 +3193,7 @@ function renderInvs() {
     
     const dueDisplay = inv.due
       ? `<span style="font-size:11px;color:${isOverdue ? '#d44' : isDueSoon ? '#a06000' : 'var(--text-muted)'}">
-          ${isOverdue ? '🔴' : isDueSoon ? '🟡' : ''} ${new Date(inv.due).toLocaleDateString('id-ID')}
+          ${isOverdue ? '🔴' : isDueSoon ? '🟡' : ''} ${fmtDate(inv.due)}
         </span>`
       : '<span style="color:var(--text-muted);font-size:11px">-</span>';
     
@@ -3187,7 +3201,7 @@ function renderInvs() {
       <td><strong>${inv.no}</strong></td>
       <td>${customer}</td>
       <td>${inv.soNo || '-'}</td>
-      <td>${new Date(inv.date).toLocaleDateString('id-ID')}</td>
+      <td>${fmtDate(inv.date)}</td>
       <td>${dueDisplay}</td>
       <td>${rupiah(total)}</td>
       <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
@@ -3483,7 +3497,7 @@ function renderRecentPOs() {
       <tr>
         <td>${recentPOs.indexOf(po) + 1}</td>
         <td>${supplier}</td>
-        <td>${new Date(po.date).toLocaleDateString('id-ID')}</td>
+        <td>${fmtDate(po.date)}</td>
         <td>${rupiah(total)}</td>
         <td><span class="badge badge-blue">${po.status}</span></td>
       </tr>
@@ -3673,7 +3687,7 @@ function generatePDFPreview(type) {
   // Info tanggal tambahan di header (hanya PO yang masih pakai TGL KIRIM di sini)
   let extraDateHtml = '';
   if (type === 'po' && doc.deliveryDate) {
-    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#8A8A9A">TGL KIRIM</p><p style="margin:2px 0;font-weight:600">${new Date(doc.deliveryDate).toLocaleDateString('id-ID')}</p>`;
+    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#8A8A9A">TGL KIRIM</p><p style="margin:2px 0;font-weight:600">${fmtDate(doc.deliveryDate)}</p>`;
   }
 
   // Detail kanan — sejajar dengan nama & alamat pihak yang dituju
@@ -3685,8 +3699,8 @@ function generatePDFPreview(type) {
     const tglKirim = doc.date;
     let rows = '';
     if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${doc.poNo}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${new Date(tglOrder).toLocaleDateString('id-ID')}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${new Date(tglKirim).toLocaleDateString('id-ID')}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${fmtDate(tglOrder)}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${fmtDate(tglKirim)}</strong></p>`;
     detailRightHtml = rows;
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
@@ -3795,7 +3809,7 @@ function generatePDFPreview(type) {
           <h1 style="color:#1E5A96;font-size:${type === 'po' ? 22 : (isInv ? 40 : 30)}px;margin:0 0 4px">${typeLabels[type]}</h1>
           <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${doc.no}</p>
           <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL</p>
-          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(doc.date).toLocaleDateString('id-ID')}</p>
+          <p style="margin:2px 0;font-weight:600;font-size:13px">${fmtDate(doc.date)}</p>
           ${extraDateHtml}
         </div>
       </div>
@@ -4035,7 +4049,8 @@ function switchPage(pageName) {
     customers: '👥 Supplier/Outlet',
     settings: '⚙️ Pengaturan',
     profile: '👤 Profil',
-    rekap: '📅 Rekap Pengiriman'
+    rekap: '📅 Rekap Pengiriman',
+    sttp: '🧾 Tanda Terima Dokumen'
   };
   
   document.getElementById('pageTitle').textContent = titles[pageName] || 'Dashboard';
@@ -4060,6 +4075,8 @@ function switchPage(pageName) {
     loadSettings();
   } else if (pageName === 'rekap') {
     initRekapPage();
+  } else if (pageName === 'sttp') {
+    renderSttps();
   } else if (pageName === 'profile') {
     const data = loadData();
     document.getElementById('profileName').value = data.profile?.name || '';
@@ -4209,7 +4226,7 @@ function renderRekap() {
         : `<td><strong>${r.soNo}</strong></td>`;
       return `<tr>
         ${soNoCell}
-        <td>${new Date(r.date).toLocaleDateString('id-ID')}</td>
+        <td>${fmtDate(r.date)}</td>
         <td>${r.outletName}</td>
         <td title="${r.itemName}">${r.itemName}</td>
         <td style="text-align:center">${r.qty}</td>
@@ -4294,7 +4311,7 @@ function exportRekapExcel() {
     so.items.forEach(item => {
       rows.push({
         'No SJ': so.no,
-        'Tanggal Kirim': new Date(so.date).toLocaleDateString('id-ID'),
+        'Tanggal Kirim': fmtDate(so.date),
         'Outlet': outlet?.name || '-',
         'Nama Barang': item.name,
         'Qty': item.qty,
@@ -4364,7 +4381,7 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.no}" ${checked} style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${new Date(inv.date).toLocaleDateString('id-ID')} — ${rupiah(total)}</span>
+      <span><strong>${inv.no}</strong> — ${fmtDate(inv.date)} — ${rupiah(total)}</span>
     </label>`;
   }).join('');
 }
@@ -4453,7 +4470,7 @@ function renderSttps() {
       : (s.invNo || '-');
     return `<tr>
       <td><strong>${s.no}</strong></td>
-      <td>${new Date(s.date).toLocaleDateString('id-ID')}</td>
+      <td>${fmtDate(s.date)}</td>
       <td><strong>${cust?.name || '-'}</strong></td>
       <td style="font-size:12px">${invList}</td>
       <td style="font-size:12px;color:#666">${s.notes || '-'}</td>
@@ -4528,7 +4545,7 @@ function generateSttpPreview(sttp) {
               const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
               const so = inv && inv.soRefId ? data.sos?.find(s => s.id === inv.soRefId) : null;
               const poNo = so?.no || inv?.soNo || '-';
-              const invDate = inv?.date ? new Date(inv.date).toLocaleDateString('id-ID') : '-';
+              const invDate = inv?.date ? fmtDate(inv.date) : '-';
               grandTotal += invTotal;
               return `
                 <tr style="${idx < sttp.invNos.length - 1 ? 'border-bottom:1px solid #ddd' : 'border-bottom:2px solid #1E5A96'}">
@@ -4572,7 +4589,7 @@ function generateSttpPreview(sttp) {
           <h1 style="color:#1E5A96;font-size:20px;font-weight:800;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px">Tanda Terima</h1>
           <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${sttp.no}</p>
           <p style="margin:6px 0 0;font-size:11px;color:#8A8A9A">TANGGAL PENGIRIMAN</p>
-          <p style="margin:2px 0;font-weight:600;font-size:13px">${new Date(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
+          <p style="margin:2px 0;font-weight:600;font-size:13px">${parseLocalDate(sttp.date).toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</p>
         </div>
       </div>
 
