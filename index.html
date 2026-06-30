@@ -3707,8 +3707,8 @@ function generatePDFPreview(type) {
   let detailRightHtml = '';
   if (isSJ) {
     const poRef = doc.poNo ? data.pos.find(p => p.no === doc.poNo) : null;
-    const tglOrder = poRef?.date || doc.date;
-    const tglKirim = doc.date;
+    const tglOrder = poRef?.date || doc.date;  // Tanggal Order = dari PO, fallback ke SJ
+    const tglKirim = doc.date;                 // Tanggal Kirim = tanggal SJ
     let rows = '';
     if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${doc.poNo}</strong></p>`;
     rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${fmtDate(tglOrder)}</strong></p>`;
