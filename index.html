@@ -3718,9 +3718,11 @@ function generatePDFPreview(type) {
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
     const refPoNo = soRecord?.poNo || doc.poNo || null;
+    const tglKirim = soRecord?.date || doc.deliveryDate || null; // Tanggal Kirim dari SJ referensi
     let rows = '';
     if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${refPoNo}</strong></p>`;
     if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No SJ: <strong>${doc.soNo}</strong></p>`;
+    if (tglKirim) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${fmtDate(tglKirim)}</strong></p>`;
     rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Term Payment: <strong>7 Hari</strong></p>`;
     detailRightHtml = rows;
   }
