@@ -4394,9 +4394,11 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
   box.innerHTML = allInvs.map(inv => {
     const total = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
+    const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+    const tglKirim = soRecord?.date || inv.deliveryDate || inv.date; // fallback ke tgl invoice kalau SJ tidak ditemukan
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.no}" ${checked} style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${fmtDate(inv.date)} — ${rupiah(total)}</span>
+      <span><strong>${inv.no}</strong> — ${fmtDate(tglKirim)} — ${rupiah(total)}</span>
     </label>`;
   }).join('');
 }
