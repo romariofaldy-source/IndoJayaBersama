@@ -772,6 +772,7 @@
               <th>Tanggal Kirim</th>
               <th>Untuk (Customer)</th>
               <th>Invoice</th>
+              <th>Total Invoice</th>
               <th>Catatan</th>
               <th>Aksi</th>
             </tr>
@@ -4472,19 +4473,28 @@ function renderSttps() {
   if (!tbody) return;
   const list = data.sttps || [];
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada Tanda Terima Invoice</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada Tanda Terima Invoice</td></tr>';
     return;
   }
   tbody.innerHTML = [...list].reverse().map(s => {
     const cust = data.customers.find(c => c.id == s.customer);
-    const invList = Array.isArray(s.invNos) && s.invNos.length > 0 
-      ? s.invNos.join(', ') 
-      : (s.invNo || '-');
+    const invNos = Array.isArray(s.invNos) && s.invNos.length > 0
+      ? s.invNos
+      : (s.invNo ? [s.invNo] : []);
+    const invList = invNos.length > 0 ? invNos.join(', ') : '-';
+    // Total gabungan semua invoice yang direferensikan di TT ini
+    const totalInv = invNos.reduce((sum, no) => {
+      const inv = data.invs.find(i => i.no === no);
+      if (!inv) return sum;
+      const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
+      return sum + (gross - (inv.discount || 0));
+    }, 0);
     return `<tr>
       <td><strong>${s.no}</strong></td>
       <td>${fmtDate(s.date)}</td>
       <td><strong>${cust?.name || '-'}</strong></td>
       <td style="font-size:12px">${invList}</td>
+      <td style="font-weight:600">${rupiah(totalInv)}</td>
       <td style="font-size:12px;color:#666">${s.notes || '-'}</td>
       <td>
         <div class="action-btns">
