@@ -511,6 +511,7 @@
               <th>Customer</th>
               <th>Ref SJ</th>
               <th>Tanggal</th>
+              <th>Tanggal Kirim</th>
               <th>Jatuh Tempo</th>
               <th>Total</th>
               <th>Status</th>
@@ -2313,8 +2314,10 @@ function exportTableToExcel(type) {
     filename = 'Export-Invoice';
     data.invs.forEach(inv => {
       const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
+      const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+      const tglKirim = soRecord?.date || inv.deliveryDate || '-';
       inv.items.forEach(item => rows.push({
-        'No Invoice': inv.no, 'Ref SJ': inv.soNo || '-', 'Customer': customer, 'Tanggal': inv.date, 'Jatuh Tempo': inv.due, 'Status': inv.status,
+        'No Invoice': inv.no, 'Ref SJ': inv.soNo || '-', 'Customer': customer, 'Tanggal': inv.date, 'Tanggal Kirim': tglKirim, 'Jatuh Tempo': inv.due, 'Status': inv.status,
         'Nama Barang': item.name, 'Qty': item.qty, 'Harga': item.price, 'Subtotal': item.qty * item.price, 'Catatan': inv.notes || ''
       }));
     });
@@ -3301,6 +3304,13 @@ function renderInvs() {
         </span>`
       : '<span style="color:var(--text-muted);font-size:11px">-</span>';
 
+    // Tanggal Kirim diambil dari Surat Jalan yang direferensikan invoice ini
+    const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+    const tglKirim = soRecord?.date || inv.deliveryDate || null;
+    const tglKirimDisplay = tglKirim
+      ? `<span style="font-size:11px">${fmtDate(tglKirim)}</span>`
+      : '<span style="color:var(--text-muted);font-size:11px">-</span>';
+
     const sentDisplay = sentInvNos.has(inv.no)
       ? `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#E8F5E9;color:#2E7D32">✅ Terkirim</span>`
       : `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#FFF3E0;color:#E65100">📮 Belum Kirim</span>`;
@@ -3315,6 +3325,7 @@ function renderInvs() {
       <td>${customer}</td>
       <td>${inv.soNo || '-'}</td>
       <td>${fmtDate(inv.date)}</td>
+      <td>${tglKirimDisplay}</td>
       <td>${dueDisplay}</td>
       <td>${rupiah(total)}</td>
       <td><span class="badge ${badgeClass}">${badgeLabel}</span>${paidInfo}</td>
