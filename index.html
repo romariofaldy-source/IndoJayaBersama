@@ -2286,6 +2286,34 @@ function exportTableToExcel(type) {
         'Nama Barang': item.name, 'Qty': item.qty, 'Harga': item.price, 'Subtotal': item.qty * item.price, 'Catatan': inv.notes || ''
       }));
     });
+  } else if (type === 'sttp') {
+    filename = 'Export-Tanda-Terima-Dokumen';
+    (data.sttps || []).forEach(s => {
+      const customer = data.customers.find(c => c.id == s.customer)?.name || 'Unknown';
+      const invNos = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos : (s.invNo ? [s.invNo] : []);
+      const totalInv = invNos.reduce((sum, no) => {
+        const inv = data.invs.find(i => i.no === no);
+        if (!inv) return sum;
+        const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
+        return sum + (gross - (inv.discount || 0));
+      }, 0);
+      const st = getSttpPaymentStatus(s);
+      const sentDate = parseLocalDate(s.date);
+      const dueDate = new Date(sentDate);
+      dueDate.setDate(dueDate.getDate() + STTP_PAYMENT_TERM_DAYS);
+      rows.push({
+        'No Tanda Terima': s.no,
+        'Tanggal Kirim': s.date,
+        'Estimasi Jatuh Tempo': dueDate.toISOString().split('T')[0],
+        'Customer/Penerima': customer,
+        'Nama PT Penerima': s.ptName || '-',
+        'No Invoice': invNos.join(', ') || '-',
+        'Total Invoice': totalInv,
+        'Status Pembayaran': st.key === 'lunas' ? 'Lunas' : (st.key === 'overdue' ? 'Telat Bayar' : (st.key === 'warning' ? 'Segera Jatuh Tempo' : 'Pending')),
+        'Tanggal Dibayar': s.paidDate || '-',
+        'Catatan': s.notes || '-'
+      });
+    });
   }
 
   if (rows.length === 0) {
