@@ -2322,6 +2322,19 @@ function exportTableToExcel(type) {
   }
 
   const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Auto-lebar kolom: hitung panjang teks terpanjang di tiap kolom (termasuk header)
+  const colKeys = Object.keys(rows[0]);
+  ws['!cols'] = colKeys.map(key => {
+    const headerLen = key.length;
+    const maxContentLen = rows.reduce((max, row) => {
+      const val = row[key];
+      const len = val === null || val === undefined ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, 0);
+    return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
   XLSX.writeFile(wb, `${filename}-${today()}.xlsx`);
@@ -4373,6 +4386,16 @@ function exportRekapExcel() {
     return;
   }
   const ws = XLSX.utils.json_to_sheet(rows);
+  const colKeys = Object.keys(rows[0]);
+  ws['!cols'] = colKeys.map(key => {
+    const headerLen = key.length;
+    const maxContentLen = rows.reduce((max, row) => {
+      const val = row[key];
+      const len = val === null || val === undefined ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, 0);
+    return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
+  });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Rekap');
   XLSX.writeFile(wb, `Rekap-Pengiriman-${dateFrom || 'all'}-sd-${dateTo || 'all'}.xlsx`);
