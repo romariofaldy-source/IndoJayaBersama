@@ -1120,6 +1120,37 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="payModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">💰 Konfirmasi Pembayaran</div>
+      <button class="modal-close" onclick="closeModal('payModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group full" id="pay-inv-info" style="background:var(--bg);padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:4px"></div>
+      <input type="hidden" id="pay-inv-id">
+      <div class="form-group full">
+        <label>Tanggal Diterima</label>
+        <input type="date" id="pay-date">
+      </div>
+      <div class="form-group full">
+        <label>Jumlah Diterima (Rp)</label>
+        <input type="number" id="pay-amount" min="0">
+        <small id="pay-amount-hint" style="color:var(--text-muted);font-size:11px"></small>
+      </div>
+      <div class="form-group full">
+        <label>Catatan (Opsional)</label>
+        <textarea id="pay-notes" placeholder="Misal: transfer via BCA, atau bayar tunai"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('payModal')">Batal</button>
+      <button class="btn btn-primary" onclick="confirmPayment()">✓ Konfirmasi Lunas</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- CUSTOMER MODAL -->
 <div class="modal-overlay" id="customerModal">
   <div class="modal">
@@ -2292,6 +2323,13 @@ function exportTableToExcel(type) {
     (data.sttps || []).forEach(s => {
       const customer = data.customers.find(c => c.id == s.customer)?.name || 'Unknown';
       const invNos = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos : (s.invNo ? [s.invNo] : []);
+      const invBreakdown = invNos.map(no => {
+        const inv = data.invs.find(i => i.no === no);
+        if (!inv) return `${no} (-)`;
+        const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
+        const amount = gross - (inv.discount || 0);
+        return `${no} (${rupiah(amount)})`;
+      });
       const totalInv = invNos.reduce((sum, no) => {
         const inv = data.invs.find(i => i.no === no);
         if (!inv) return sum;
@@ -2308,7 +2346,7 @@ function exportTableToExcel(type) {
         'Estimasi Jatuh Tempo': dueDate.toISOString().split('T')[0],
         'Customer/Penerima': customer,
         'Nama PT Penerima': s.ptName || '-',
-        'No Invoice': invNos.join(', ') || '-',
+        'Rincian Invoice (No & Nominal)': invBreakdown.join(' | ') || '-',
         'Total Invoice': totalInv,
         'Status Pembayaran': st.key === 'lunas' ? 'Lunas' : (st.key === 'overdue' ? 'Telat Bayar' : (st.key === 'warning' ? 'Segera Jatuh Tempo' : 'Pending')),
         'Tanggal Dibayar': s.paidDate || '-',
@@ -3249,11 +3287,12 @@ function renderInvs() {
     const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
     const total = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
     const isLunas = inv.status === 'Lunas';
-    const isOverdue = !isLunas && inv.due && inv.due < todayStr;
-    const isDueSoon = !isLunas && !isOverdue && inv.due && inv.due <= addDays(todayStr, 3);
+    const isPartial = inv.status === 'Lunas Sebagian';
+    const isOverdue = !isLunas && !isPartial && inv.due && inv.due < todayStr;
+    const isDueSoon = !isLunas && !isPartial && !isOverdue && inv.due && inv.due <= addDays(todayStr, 3);
     
-    const badgeClass = isLunas ? 'badge-green' : isOverdue ? 'badge-coral' : inv.status === 'Terbit' ? 'badge-blue' : 'badge-amber';
-    const badgeLabel = isOverdue ? '⚠️ Jatuh Tempo' : inv.status;
+    const badgeClass = isLunas ? 'badge-green' : isPartial ? 'badge-amber' : isOverdue ? 'badge-coral' : inv.status === 'Terbit' ? 'badge-blue' : 'badge-amber';
+    const badgeLabel = isOverdue ? '⚠️ Jatuh Tempo' : isPartial ? '🟡 Lunas Sebagian' : inv.status;
     const rowStyle = isOverdue ? 'background: rgba(255,123,110,0.07);' : isDueSoon ? 'background: rgba(245,166,35,0.07);' : '';
     
     const dueDisplay = inv.due
@@ -3265,6 +3304,11 @@ function renderInvs() {
     const sentDisplay = sentInvNos.has(inv.no)
       ? `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#E8F5E9;color:#2E7D32">✅ Terkirim</span>`
       : `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#FFF3E0;color:#E65100">📮 Belum Kirim</span>`;
+
+    // Info nominal yang sudah diterima (kalau ada pembayaran sebagian tercatat)
+    const paidInfo = (isPartial && inv.paidAmount)
+      ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">Diterima: ${rupiah(inv.paidAmount)} / ${rupiah(total)}</div>`
+      : (isLunas && inv.paidDate ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">Dibayar ${fmtDate(inv.paidDate)}</div>` : '');
     
     return `<tr style="${rowStyle}">
       <td><strong>${inv.no}</strong></td>
@@ -3273,10 +3317,10 @@ function renderInvs() {
       <td>${fmtDate(inv.date)}</td>
       <td>${dueDisplay}</td>
       <td>${rupiah(total)}</td>
-      <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+      <td><span class="badge ${badgeClass}">${badgeLabel}</span>${paidInfo}</td>
       <td>${sentDisplay}</td>
       <td class="action-btns">
-        ${!isLunas ? `<button class="btn btn-sm btn-success" onclick="markInvLunas(${inv.id})">✓ Lunas</button>` : ''}
+        ${!isLunas ? `<button class="btn btn-sm btn-success" onclick="markInvLunas(${inv.id})">✓ ${isPartial ? 'Lunasi Sisa' : 'Lunas'}</button>` : ''}
         <button class="btn btn-sm btn-pdf" onclick="previewInvFromList(${inv.id})">Lihat</button>
         <button class="btn btn-sm btn-outline" onclick="editInv(${inv.id})">✏️ Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteInv(${inv.id})">Hapus</button>
@@ -3295,11 +3339,44 @@ function markInvLunas(id) {
   const data = loadData();
   const inv = data.invs.find(i => i.id === id);
   if (!inv) return;
-  inv.status = 'Lunas';
+  const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
+  const total = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
+
+  document.getElementById('pay-inv-id').value = id;
+  document.getElementById('pay-inv-info').innerHTML = `<strong>${inv.no}</strong> — ${customer}<br>Total Tagihan: <strong>${rupiah(total)}</strong>`;
+  document.getElementById('pay-date').value = today();
+  document.getElementById('pay-amount').value = total;
+  document.getElementById('pay-amount-hint').textContent = `Total tagihan: ${rupiah(total)}`;
+  document.getElementById('pay-notes').value = '';
+  document.getElementById('payModal').classList.add('open');
+}
+
+function confirmPayment() {
+  const id = Number(document.getElementById('pay-inv-id').value);
+  const data = loadData();
+  const inv = data.invs.find(i => i.id === id);
+  if (!inv) return;
+
+  const paidDate = document.getElementById('pay-date').value;
+  const paidAmount = parseFloat(document.getElementById('pay-amount').value) || 0;
+  const paidNotes = document.getElementById('pay-notes').value.trim();
+  if (!paidDate) { showToast('Isi tanggal diterima dulu ya.'); return; }
+
+  const total = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
+
+  inv.paidDate = paidDate;
+  inv.paidAmount = paidAmount;
+  inv.paidNotes = paidNotes;
+  // Kalau nominal yang diterima kurang dari total tagihan, tandai "Lunas Sebagian"
+  // supaya kelihatan ada selisih yang masih perlu ditagih, tapi jangan tetap "Belum Lunas"
+  // biar gampang di-track statusnya udah ada progress pembayaran.
+  inv.status = (paidAmount < total - 1) ? 'Lunas Sebagian' : 'Lunas';
+
   saveData(data);
   renderInvs();
   renderDashboard();
-  showToast('Invoice ditandai Lunas!');
+  closeModal('payModal');
+  showToast(inv.status === 'Lunas' ? 'Pembayaran dikonfirmasi — Invoice Lunas!' : 'Pembayaran sebagian dicatat.');
 }
 
 function deleteInv(id) {
@@ -4602,13 +4679,15 @@ function renderSttps() {
   // Hitung total invoice per STTP sekali di awal (dipakai untuk summary & tabel)
   const enriched = list.map(s => {
     const invNos = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos : (s.invNo ? [s.invNo] : []);
-    const totalInv = invNos.reduce((sum, no) => {
+    // Breakdown nominal per invoice (bukan cuma total gabungan)
+    const invBreakdown = invNos.map(no => {
       const inv = data.invs.find(i => i.no === no);
-      if (!inv) return sum;
+      if (!inv) return { no, amount: 0, found: false };
       const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
-      return sum + (gross - (inv.discount || 0));
-    }, 0);
-    return { s, invNos, totalInv, status: getSttpPaymentStatus(s) };
+      return { no, amount: gross - (inv.discount || 0), found: true };
+    });
+    const totalInv = invBreakdown.reduce((sum, b) => sum + b.amount, 0);
+    return { s, invNos, invBreakdown, totalInv, status: getSttpPaymentStatus(s) };
   });
 
   // ── Summary cards ──
@@ -4664,15 +4743,17 @@ function renderSttps() {
     return;
   }
 
-  tbody.innerHTML = [...filtered].reverse().map(({ s, invNos, totalInv, status }) => {
+  tbody.innerHTML = [...filtered].reverse().map(({ s, invNos, invBreakdown, totalInv, status }) => {
     const cust = data.customers.find(c => c.id == s.customer);
-    const invList = invNos.length > 0 ? invNos.join(', ') : '-';
+    const invListHtml = invBreakdown.length > 0
+      ? invBreakdown.map(b => `<div style="white-space:nowrap">${b.no} — <strong>${b.found ? rupiah(b.amount) : '-'}</strong></div>`).join('')
+      : '-';
     const toggleLabel = status.key === 'lunas' ? '↩️ Batal Lunas' : '✅ Tandai Lunas';
     return `<tr>
       <td><strong>${s.no}</strong></td>
       <td>${fmtDate(s.date)}</td>
       <td><strong>${cust?.name || '-'}</strong></td>
-      <td style="font-size:12px">${invList}</td>
+      <td style="font-size:12px">${invListHtml}</td>
       <td style="font-weight:600">${rupiah(totalInv)}</td>
       <td>
         <span style="display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${status.bg};color:${status.color}">${status.label}</span>
