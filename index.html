@@ -734,6 +734,27 @@
         <div class="stats-grid" id="rekap-stats"></div>
       </div>
 
+      <div class="table-card" style="margin-bottom:20px;">
+        <div class="table-header">
+          <div class="table-title">🧾 Rekap Per Item &amp; Outlet</div>
+          <div style="font-size:13px;color:var(--text-muted)">Item apa aja yg keluar, ke outlet mana aja, dan totalnya</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Barang</th>
+                <th>Outlet</th>
+                <th style="text-align:center">Qty</th>
+                <th>UOM</th>
+                <th style="text-align:right">Total Nilai</th>
+              </tr>
+            </thead>
+            <tbody id="rekap-item-table"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="table-card">
         <div class="table-header">
           <div class="table-title">📦 Detail Barang Terkirim</div>
@@ -4372,6 +4393,9 @@ function renderRekap() {
     });
   });
 
+  // Render rekap per item & outlet
+  renderRekapPerItem(rows);
+
   // Render tabel
   const tbody = document.getElementById('rekap-table');
   if (rows.length === 0) {
@@ -4453,6 +4477,59 @@ function renderRekap() {
   `;
 }
 
+function renderRekapPerItem(rows) {
+  const tbody = document.getElementById('rekap-item-table');
+  if (!tbody) return;
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">Tidak ada data pengiriman pada periode ini</td></tr>`;
+    return;
+  }
+
+  // Kelompokkan: itemName -> { uom, outlets: { outletName: {qty, subtotal} }, totalQty, totalSubtotal }
+  const map = {};
+  rows.forEach(r => {
+    if (!map[r.itemName]) {
+      map[r.itemName] = { uom: r.uom, outlets: {}, totalQty: 0, totalSubtotal: 0 };
+    }
+    const g = map[r.itemName];
+    if (!g.outlets[r.outletName]) g.outlets[r.outletName] = { qty: 0, subtotal: 0 };
+    g.outlets[r.outletName].qty += (r.qty || 0);
+    g.outlets[r.outletName].subtotal += (r.subtotal || 0);
+    g.totalQty += (r.qty || 0);
+    g.totalSubtotal += (r.subtotal || 0);
+  });
+
+  // Urutkan item dari yang paling banyak keluar (qty terbesar)
+  const items = Object.entries(map).sort((a, b) => b[1].totalQty - a[1].totalQty);
+
+  let html = '';
+  items.forEach(([itemName, g]) => {
+    // Urutkan outlet dari qty terbesar per item
+    const outlets = Object.entries(g.outlets).sort((a, b) => b[1].qty - a[1].qty);
+    const rowCount = outlets.length;
+    outlets.forEach(([outletName, o], idx) => {
+      html += '<tr>';
+      if (idx === 0) {
+        html += `<td rowspan="${rowCount}" style="font-weight:600;vertical-align:top;border-right:1px solid var(--border)" title="${itemName}">${itemName}</td>`;
+      }
+      html += `<td>${outletName}</td>`;
+      html += `<td style="text-align:center">${o.qty}</td>`;
+      html += `<td>${g.uom}</td>`;
+      html += `<td style="text-align:right">${rupiah(o.subtotal)}</td>`;
+      html += '</tr>';
+    });
+    // Baris total per item (hanya perlu kalau item keluar ke >1 outlet, tapi tetap ditampilkan biar konsisten)
+    html += `<tr style="background:var(--purple-light);font-weight:700">
+      <td colspan="2" style="text-align:right">Total ${itemName}</td>
+      <td style="text-align:center">${g.totalQty}</td>
+      <td>${g.uom}</td>
+      <td style="text-align:right">${rupiah(g.totalSubtotal)}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
 function exportRekapExcel() {
   const data = loadData();
   const dateFrom = document.getElementById('rekap-date-from').value;
@@ -4497,8 +4574,53 @@ function exportRekapExcel() {
     }, 0);
     return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
   });
+  // Sheet 2: Pivot per Item & Outlet
+  const map2 = {};
+  rows.forEach(r => {
+    const key = r['Nama Barang'];
+    if (!map2[key]) map2[key] = { uom: r['UOM'], outlets: {}, totalQty: 0, totalSubtotal: 0 };
+    const g = map2[key];
+    const outletKey = r['Outlet'];
+    if (!g.outlets[outletKey]) g.outlets[outletKey] = { qty: 0, subtotal: 0 };
+    g.outlets[outletKey].qty += (r['Qty'] || 0);
+    g.outlets[outletKey].subtotal += (r['Subtotal'] || 0);
+    g.totalQty += (r['Qty'] || 0);
+    g.totalSubtotal += (r['Subtotal'] || 0);
+  });
+  const pivotRows = [];
+  Object.entries(map2).sort((a, b) => b[1].totalQty - a[1].totalQty).forEach(([itemName, g]) => {
+    Object.entries(g.outlets).sort((a, b) => b[1].qty - a[1].qty).forEach(([outletName, o]) => {
+      pivotRows.push({
+        'Nama Barang': itemName,
+        'Outlet': outletName,
+        'Qty': o.qty,
+        'UOM': g.uom,
+        'Total Nilai': o.subtotal
+      });
+    });
+    pivotRows.push({
+      'Nama Barang': `TOTAL ${itemName}`,
+      'Outlet': '',
+      'Qty': g.totalQty,
+      'UOM': g.uom,
+      'Total Nilai': g.totalSubtotal
+    });
+  });
+  const ws2 = XLSX.utils.json_to_sheet(pivotRows);
+  const colKeys2 = Object.keys(pivotRows[0] || {});
+  ws2['!cols'] = colKeys2.map(key => {
+    const headerLen = key.length;
+    const maxContentLen = pivotRows.reduce((max, row) => {
+      const val = row[key];
+      const len = val === null || val === undefined ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, 0);
+    return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Rekap');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Per Item-Outlet');
   XLSX.writeFile(wb, `Rekap-Pengiriman-${dateFrom || 'all'}-sd-${dateTo || 'all'}.xlsx`);
   showToast('Rekap berhasil didownload!');
 }
