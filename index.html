@@ -3842,10 +3842,17 @@ function generatePDFPreview(type) {
     `;
   }
 
+  // Subjudul penjelas di bawah judul dokumen — biar orang awam langsung ngerti dokumen ini buat apa
+  const docSubtitle = {
+    po: 'Dokumen Pemesanan Barang',
+    so: 'Dokumen Bukti Pengiriman Barang',
+    inv: 'Dokumen Tagihan Pembayaran'
+  };
+
   // Info tanggal tambahan di header (hanya PO yang masih pakai TGL KIRIM di sini)
   let extraDateHtml = '';
   if (type === 'po' && doc.deliveryDate) {
-    extraDateHtml = `<p style="margin:6px 0 0;font-size:12px;color:#8A8A9A">TGL KIRIM</p><p style="margin:2px 0;font-weight:600">${fmtDate(doc.deliveryDate)}</p>`;
+    extraDateHtml = `<p style="margin:6px 0 0;font-size:11px;color:#8A8A9A">TANGGAL KIRIM BARANG</p><p style="margin:2px 0;font-weight:600">${fmtDate(doc.deliveryDate)}</p>`;
   }
 
   // Detail kanan — sejajar dengan nama & alamat pihak yang dituju
@@ -3856,19 +3863,19 @@ function generatePDFPreview(type) {
     const tglOrder = poRef?.date || doc.date;  // Tanggal Order = dari PO, fallback ke SJ
     const tglKirim = doc.date;                 // Tanggal Kirim = tanggal SJ
     let rows = '';
-    if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${doc.poNo}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order: <strong>${fmtDate(tglOrder)}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${fmtDate(tglKirim)}</strong></p>`;
+    if (doc.poNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO (Referensi Order): <strong>${doc.poNo}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">Tanggal Order Dibuat: <strong>${fmtDate(tglOrder)}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim Barang: <strong>${fmtDate(tglKirim)}</strong></p>`;
     detailRightHtml = rows;
   } else if (isInv) {
     const soRecord = doc.soNo ? data.sos.find(s => s.no === doc.soNo) : null;
     const refPoNo = soRecord?.poNo || doc.poNo || null;
     const tglKirim = soRecord?.date || doc.deliveryDate || null; // Tanggal Kirim dari SJ referensi
     let rows = '';
-    if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO: <strong>${refPoNo}</strong></p>`;
-    if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No SJ: <strong>${doc.soNo}</strong></p>`;
-    if (tglKirim) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Kirim: <strong>${fmtDate(tglKirim)}</strong></p>`;
-    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Term Payment: <strong>7 Hari</strong></p>`;
+    if (refPoNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:6px">No PO (Referensi Order): <strong>${refPoNo}</strong></p>`;
+    if (doc.soNo) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">No Surat Jalan (Referensi Kirim): <strong>${doc.soNo}</strong></p>`;
+    if (tglKirim) rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Tanggal Barang Dikirim: <strong>${fmtDate(tglKirim)}</strong></p>`;
+    rows += `<p style="font-size:12px;color:#8A8A9A;margin-top:2px">Jangka Waktu Bayar: <strong>7 Hari</strong></p>`;
     detailRightHtml = rows;
   }
 
@@ -3952,11 +3959,46 @@ function generatePDFPreview(type) {
     </div>
   `;
 
+  // Ringkasan cepat — box highlight biar info paling penting langsung "loncat" ke mata
+  // tanpa perlu scroll baca semua tabel item dulu
+  let summaryBarHtml = '';
+  const itemCount = doc.items.length;
+  if (isInv) {
+    const dueBadge = doc.due ? fmtDate(doc.due) : '-';
+    summaryBarHtml = `
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px;padding:14px 18px;border-radius:10px;background:${docBadgeBg};border:1px solid ${docAccent}33">
+          <div style="font-size:11px;color:${docAccent};font-weight:700;text-transform:uppercase;letter-spacing:0.5px">💰 Total Tagihan</div>
+          <div style="font-size:22px;font-weight:700;color:#1A1A2E;margin-top:4px">Rp ${grandTotal.toLocaleString('id-ID')}</div>
+        </div>
+        <div style="flex:1;min-width:180px;padding:14px 18px;border-radius:10px;background:#FFF3E0;border:1px solid #E6510033">
+          <div style="font-size:11px;color:#E65100;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">📅 Batas Akhir Bayar</div>
+          <div style="font-size:22px;font-weight:700;color:#1A1A2E;margin-top:4px">${dueBadge}</div>
+        </div>
+      </div>
+    `;
+  } else if (isSJ) {
+    summaryBarHtml = `
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px;padding:14px 18px;border-radius:10px;background:${docBadgeBg};border:1px solid ${docAccent}33">
+          <div style="font-size:11px;color:${docAccent};font-weight:700;text-transform:uppercase;letter-spacing:0.5px">📦 Jumlah Jenis Barang</div>
+          <div style="font-size:22px;font-weight:700;color:#1A1A2E;margin-top:4px">${itemCount} Jenis Barang</div>
+        </div>
+        <div style="flex:1;min-width:180px;padding:14px 18px;border-radius:10px;background:${docBadgeBg};border:1px solid ${docAccent}33">
+          <div style="font-size:11px;color:${docAccent};font-weight:700;text-transform:uppercase;letter-spacing:0.5px">🚚 Tanggal Kirim Barang</div>
+          <div style="font-size:22px;font-weight:700;color:#1A1A2E;margin-top:4px">${fmtDate(doc.date)}</div>
+        </div>
+      </div>
+    `;
+  }
+
   const pdfContent = document.getElementById('pdfContent');
+  const docAccent = { po: '#7C6FF7', so: '#1E5A96', inv: '#1B8A5A' }[type];
+  const docBadgeBg = { po: '#F0EEFF', so: '#E3F2FD', inv: '#E6F4EC' }[type];
   pdfContent.innerHTML = `
     <div class="pdf-content">
       <!-- HEADER: Logo + Nama Perusahaan kiri | Judul Dokumen kanan -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #1E5A96;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid ${docAccent};gap:16px">
         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto;max-width:60%">
           ${logo ? `<img src="${logo}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0">` : '<div style="width:64px;height:64px;border-radius:8px;background:#E3F2FD;display:flex;align-items:center;justify-content:center;color:#1E5A96;font-weight:700;font-size:20px;flex-shrink:0">IJ</div>'}
           <div style="min-width:0">
@@ -3966,9 +4008,10 @@ function generatePDFPreview(type) {
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <h1 style="color:#1E5A96;font-size:${type === 'po' ? 22 : (isInv ? 40 : 30)}px;margin:0 0 4px">${typeLabels[type]}</h1>
+          <div style="display:inline-block;padding:3px 10px;border-radius:12px;background:${docBadgeBg};color:${docAccent};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${docSubtitle[type]}</div>
+          <h1 style="color:${docAccent};font-size:${type === 'po' ? 22 : (isInv ? 34 : 26)}px;margin:0 0 4px">${typeLabels[type]}</h1>
           <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A2E">${doc.no}</p>
-          <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL</p>
+          <p style="margin:8px 0 0;font-size:11px;color:#8A8A9A">TANGGAL ${typeLabels[type].toUpperCase()} DIBUAT</p>
           <p style="margin:2px 0;font-weight:600;font-size:13px">${fmtDate(doc.date)}</p>
           ${extraDateHtml}
         </div>
@@ -3987,6 +4030,8 @@ function generatePDFPreview(type) {
           ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#8A8A9A;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
         </div>
       </div>
+
+      ${summaryBarHtml}
       
       <!-- TABEL ITEM — kolom seragam untuk semua tipe -->
       <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #BBDEFB;border-radius:8px;overflow:hidden">
