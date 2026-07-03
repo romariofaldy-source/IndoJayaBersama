@@ -514,6 +514,7 @@
               <th>Jatuh Tempo</th>
               <th>Total</th>
               <th>Status</th>
+              <th>Terkirim</th>
               <th>Aksi</th>
             </tr>
 
@@ -3236,7 +3237,14 @@ function renderInvs() {
   const data = loadData();
   const tbody = document.getElementById('inv-table');
   const todayStr = today();
-  
+
+  // Kumpulkan semua nomor invoice yang sudah pernah dilampirkan ke Tanda Terima Dokumen
+  const sentInvNos = new Set();
+  (data.sttps || []).forEach(s => {
+    const invNos = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos : (s.invNo ? [s.invNo] : []);
+    invNos.forEach(no => sentInvNos.add(no));
+  });
+
   tbody.innerHTML = data.invs.map(inv => {
     const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
     const total = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
@@ -3253,6 +3261,10 @@ function renderInvs() {
           ${isOverdue ? '🔴' : isDueSoon ? '🟡' : ''} ${fmtDate(inv.due)}
         </span>`
       : '<span style="color:var(--text-muted);font-size:11px">-</span>';
+
+    const sentDisplay = sentInvNos.has(inv.no)
+      ? `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#E8F5E9;color:#2E7D32">✅ Terkirim</span>`
+      : `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#FFF3E0;color:#E65100">📮 Belum Kirim</span>`;
     
     return `<tr style="${rowStyle}">
       <td><strong>${inv.no}</strong></td>
@@ -3262,6 +3274,7 @@ function renderInvs() {
       <td>${dueDisplay}</td>
       <td>${rupiah(total)}</td>
       <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+      <td>${sentDisplay}</td>
       <td class="action-btns">
         ${!isLunas ? `<button class="btn btn-sm btn-success" onclick="markInvLunas(${inv.id})">✓ Lunas</button>` : ''}
         <button class="btn btn-sm btn-pdf" onclick="previewInvFromList(${inv.id})">Lihat</button>
