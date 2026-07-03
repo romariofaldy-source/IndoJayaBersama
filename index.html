@@ -763,6 +763,8 @@
         <button class="btn btn-primary" onclick="openSttpModal()">+ Buat Tanda Terima Invoice</button>
         <button class="btn btn-success" onclick="exportTableToExcel('sttp')">📤 Export Excel</button>
       </div>
+      <div id="sttp-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px"></div>
+      <div id="sttp-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
       <div class="table-card">
         <div class="table-scroll">
         <table>
@@ -773,6 +775,7 @@
               <th>Untuk (Customer)</th>
               <th>Invoice</th>
               <th>Total Invoice</th>
+              <th>Status Bayar</th>
               <th>Catatan</th>
               <th>Aksi</th>
             </tr>
@@ -4350,6 +4353,56 @@ function exportRekapExcel() {
 
 // ===== SURAT TANDA TERIMA (STTP) =====
 let currentSttpData = null;
+const STTP_PAYMENT_TERM_DAYS = 14; // Estimasi jatuh tempo maksimal (2 minggu) sejak tanggal kirim
+
+// Hitung status pembayaran berdasarkan tanggal kirim + term pembayaran
+function getSttpPaymentStatus(sttp) {
+  if (sttp.status === 'lunas') {
+    return {
+      key: 'lunas',
+      label: '✅ Lunas',
+      sub: sttp.paidDate ? `dibayar ${fmtDate(sttp.paidDate)}` : '',
+      bg: '#E8F5E9', color: '#2E7D32'
+    };
+  }
+  const sentDate = parseLocalDate(sttp.date);
+  const dueDate = new Date(sentDate);
+  dueDate.setDate(dueDate.getDate() + STTP_PAYMENT_TERM_DAYS);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const msPerDay = 86400000;
+  const daysLeft = Math.round((dueDate - now) / msPerDay);
+
+  if (daysLeft < 0) {
+    return { key: 'overdue', label: `⚠️ Telat ${Math.abs(daysLeft)} hari`, sub: `jatuh tempo ${fmtDate(dueDate.toISOString().split('T')[0])}`, bg: '#FFEBEE', color: '#C62828' };
+  } else if (daysLeft <= 7) {
+    return { key: 'warning', label: `⏳ ${daysLeft} hari lagi`, sub: `jatuh tempo ${fmtDate(dueDate.toISOString().split('T')[0])}`, bg: '#FFF3E0', color: '#E65100' };
+  } else {
+    return { key: 'pending', label: `🕐 Pending (${daysLeft} hari lagi)`, sub: `jatuh tempo ${fmtDate(dueDate.toISOString().split('T')[0])}`, bg: '#E3F2FD', color: '#1565C0' };
+  }
+}
+
+function toggleSttpStatus(id) {
+  const data = loadData();
+  const sttp = (data.sttps || []).find(s => s.id === id);
+  if (!sttp) return;
+  if (sttp.status === 'lunas') {
+    sttp.status = 'pending';
+    delete sttp.paidDate;
+  } else {
+    sttp.status = 'lunas';
+    sttp.paidDate = today();
+  }
+  saveData(data);
+  renderSttps();
+  showToast(sttp.status === 'lunas' ? 'Ditandai Lunas!' : 'Ditandai Pending kembali.');
+}
+
+let sttpFilterMode = 'all'; // all | pending | warning | overdue | lunas
+function setSttpFilter(mode) {
+  sttpFilterMode = mode;
+  renderSttps();
+}
 
 function openSttpModal(editId) {
   const data = loadData();
@@ -4441,6 +4494,7 @@ function saveSttp() {
   if (!data.sttps) data.sttps = [];
   const editId = document.getElementById('sttp-edit-id').value;
   const invNos = getSelectedSttpInvNos();
+  const existing = editId ? data.sttps.find(s => s.id === editId) : null;
   const sttp = {
     id: editId || ('sttp_' + Date.now()),
     no,
@@ -4448,7 +4502,9 @@ function saveSttp() {
     customer,
     ptName: document.getElementById('sttp-pt-name').value.trim(),
     invNos,
-    notes: document.getElementById('sttp-notes').value.trim()
+    notes: document.getElementById('sttp-notes').value.trim(),
+    status: existing?.status || 'pending',
+    ...(existing?.paidDate ? { paidDate: existing.paidDate } : {})
   };
   if (editId) {
     const idx = data.sttps.findIndex(s => s.id === editId);
@@ -4474,36 +4530,96 @@ function deleteSttp(id) {
 function renderSttps() {
   const data = loadData();
   const tbody = document.getElementById('sttp-table');
+  const summaryEl = document.getElementById('sttp-summary');
+  const filtersEl = document.getElementById('sttp-filters');
   if (!tbody) return;
   const list = data.sttps || [];
-  if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada Tanda Terima Invoice</td></tr>';
-    return;
-  }
-  tbody.innerHTML = [...list].reverse().map(s => {
-    const cust = data.customers.find(c => c.id == s.customer);
-    const invNos = Array.isArray(s.invNos) && s.invNos.length > 0
-      ? s.invNos
-      : (s.invNo ? [s.invNo] : []);
-    const invList = invNos.length > 0 ? invNos.join(', ') : '-';
-    // Total gabungan semua invoice yang direferensikan di TT ini
+
+  // Hitung total invoice per STTP sekali di awal (dipakai untuk summary & tabel)
+  const enriched = list.map(s => {
+    const invNos = Array.isArray(s.invNos) && s.invNos.length > 0 ? s.invNos : (s.invNo ? [s.invNo] : []);
     const totalInv = invNos.reduce((sum, no) => {
       const inv = data.invs.find(i => i.no === no);
       if (!inv) return sum;
       const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
       return sum + (gross - (inv.discount || 0));
     }, 0);
+    return { s, invNos, totalInv, status: getSttpPaymentStatus(s) };
+  });
+
+  // ── Summary cards ──
+  const countPending = enriched.filter(e => e.status.key === 'pending').length;
+  const countWarning = enriched.filter(e => e.status.key === 'warning').length;
+  const countOverdue = enriched.filter(e => e.status.key === 'overdue').length;
+  const countLunas = enriched.filter(e => e.status.key === 'lunas').length;
+  const outstandingTotal = enriched.filter(e => e.status.key !== 'lunas').reduce((s, e) => s + e.totalInv, 0);
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="stat-card" style="border-left:4px solid #C62828">
+        <div class="stat-label">⚠️ Telat Bayar</div>
+        <div class="stat-value" style="color:#C62828">${countOverdue}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #E65100">
+        <div class="stat-label">⏳ Segera Jatuh Tempo (≤7 hari)</div>
+        <div class="stat-value" style="color:#E65100">${countWarning}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #1565C0">
+        <div class="stat-label">🕐 Pending</div>
+        <div class="stat-value" style="color:#1565C0">${countPending}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #2E7D32">
+        <div class="stat-label">✅ Lunas</div>
+        <div class="stat-value" style="color:#2E7D32">${countLunas}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--purple)">
+        <div class="stat-label">💰 Total Outstanding</div>
+        <div class="stat-value" style="font-size:16px">${rupiah(outstandingTotal)}</div>
+      </div>
+    `;
+  }
+
+  // ── Filter tabs ──
+  if (filtersEl) {
+    const tabs = [
+      { key: 'all', label: `Semua (${list.length})` },
+      { key: 'overdue', label: `⚠️ Telat (${countOverdue})` },
+      { key: 'warning', label: `⏳ Segera (${countWarning})` },
+      { key: 'pending', label: `🕐 Pending (${countPending})` },
+      { key: 'lunas', label: `✅ Lunas (${countLunas})` }
+    ];
+    filtersEl.innerHTML = tabs.map(t => `
+      <button class="btn btn-sm ${sttpFilterMode === t.key ? 'btn-primary' : 'btn-outline'}" onclick="setSttpFilter('${t.key}')">${t.label}</button>
+    `).join('');
+  }
+
+  // ── Filter list sesuai tab aktif ──
+  const filtered = sttpFilterMode === 'all' ? enriched : enriched.filter(e => e.status.key === sttpFilterMode);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Tidak ada data Tanda Terima Invoice</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = [...filtered].reverse().map(({ s, invNos, totalInv, status }) => {
+    const cust = data.customers.find(c => c.id == s.customer);
+    const invList = invNos.length > 0 ? invNos.join(', ') : '-';
+    const toggleLabel = status.key === 'lunas' ? '↩️ Batal Lunas' : '✅ Tandai Lunas';
     return `<tr>
       <td><strong>${s.no}</strong></td>
       <td>${fmtDate(s.date)}</td>
       <td><strong>${cust?.name || '-'}</strong></td>
       <td style="font-size:12px">${invList}</td>
       <td style="font-weight:600">${rupiah(totalInv)}</td>
+      <td>
+        <span style="display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${status.bg};color:${status.color}">${status.label}</span>
+        ${status.sub ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${status.sub}</div>` : ''}
+      </td>
       <td style="font-size:12px;color:#666">${s.notes || '-'}</td>
       <td>
         <div class="action-btns">
           <button class="btn btn-sm btn-pdf" onclick="previewSttpFromList('${s.id}')">👁️ PDF</button>
           <button class="btn btn-sm btn-outline" onclick="openSttpModal('${s.id}')">✏️</button>
+          <button class="btn btn-sm" style="background:${status.key === 'lunas' ? '#FFF3E0' : '#E8F5E9'};color:${status.key === 'lunas' ? '#E65100' : '#2E7D32'}" onclick="toggleSttpStatus('${s.id}')">${toggleLabel}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteSttp('${s.id}')">🗑️</button>
         </div>
       </td>
