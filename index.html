@@ -736,8 +736,13 @@
 
       <div class="table-card" style="margin-bottom:20px;">
         <div class="table-header">
-          <div class="table-title">🧾 Rekap Per Item &amp; Outlet</div>
-          <div style="font-size:13px;color:var(--text-muted)">Item apa aja yg keluar, ke outlet mana aja, dan totalnya</div>
+          <div>
+            <div class="table-title">🧾 Rekap Per Item &amp; Outlet</div>
+            <div style="font-size:13px;color:var(--text-muted)">Item apa aja yg keluar, ke outlet mana aja, dan totalnya</div>
+          </div>
+          <div style="position:relative">
+            <input type="text" id="rekap-item-search" placeholder="🔍 Cari nama barang..." oninput="filterRekapPerItem()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; width:220px; outline:none;">
+          </div>
         </div>
         <div class="table-scroll">
           <table>
@@ -4393,8 +4398,9 @@ function renderRekap() {
     });
   });
 
-  // Render rekap per item & outlet
+  // Render rekap per item & outlet (cache rows lalu terapkan search yg lagi aktif kalau ada)
   renderRekapPerItem(rows);
+  filterRekapPerItem();
 
   // Render tabel
   const tbody = document.getElementById('rekap-table');
@@ -4477,11 +4483,28 @@ function renderRekap() {
   `;
 }
 
-function renderRekapPerItem(rows) {
+let lastRekapRows = [];
+
+function filterRekapPerItem() {
+  const term = (document.getElementById('rekap-item-search')?.value || '').trim().toLowerCase();
+  const filtered = term
+    ? lastRekapRows.filter(r => r.itemName.toLowerCase().includes(term))
+    : lastRekapRows;
+  renderRekapPerItem(filtered, term);
+}
+
+function renderRekapPerItem(rows, searchTerm) {
   const tbody = document.getElementById('rekap-item-table');
   if (!tbody) return;
+  // Hanya update cache saat dipanggil dari renderRekap (bukan dari search),
+  // supaya search tetap bisa filter dari data lengkap periode yang sedang aktif
+  if (searchTerm === undefined) lastRekapRows = rows;
+
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">Tidak ada data pengiriman pada periode ini</td></tr>`;
+    const msg = searchTerm
+      ? `Tidak ada barang yang cocok dengan pencarian "${searchTerm}"`
+      : 'Tidak ada data pengiriman pada periode ini';
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">${msg}</td></tr>`;
     return;
   }
 
