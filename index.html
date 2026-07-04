@@ -4977,7 +4977,7 @@ function generateSttpPreview(sttp) {
             <thead style="border-bottom:2px solid #1E5A96">
               <tr>
                 <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Invoice</th>
-                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Tanggal</th>
+                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Tgl Kirim</th>
                 <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">PO</th>
                 <th style="text-align:right;padding:6px 0;color:#1E5A96;font-weight:700">Total</th>
               </tr>
@@ -4987,8 +4987,10 @@ function generateSttpPreview(sttp) {
               const inv = data.invs.find(i => i.no === invNo);
               const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
               const so = inv && inv.soRefId ? data.sos?.find(s => s.id === inv.soRefId) : null;
-              const poNo = so?.no || inv?.soNo || '-';
-              const invDate = inv?.date ? fmtDate(inv.date) : '-';
+              const soByNo = (!so && inv?.soNo) ? data.sos?.find(s => s.no === inv.soNo) : null;
+              const poNo = so?.no || soByNo?.no || inv?.soNo || '-';
+              const tglKirim = so?.date || soByNo?.date || inv?.deliveryDate || inv?.date; // fallback kalau SJ tidak ditemukan
+              const invDate = tglKirim ? fmtDate(tglKirim) : '-';
               grandTotal += invTotal;
               return `
                 <tr style="${idx < sttp.invNos.length - 1 ? 'border-bottom:1px solid #ddd' : 'border-bottom:2px solid #1E5A96'}">
