@@ -2551,6 +2551,7 @@ function editPO(id) {
   document.getElementById('po-no').value = po.no;
   populateCustomerSelect('po-supplier', po.supplier, 'outlet');
   document.getElementById('po-date').value = po.date;
+  document.getElementById('po-delivery-date').value = po.deliveryDate || '';
   document.getElementById('po-status').value = po.status || 'Draft';
   document.getElementById('po-notes').value = po.notes || '';
   document.getElementById('po-discount').value = po.discount || 0;
@@ -2590,6 +2591,7 @@ function savePO() {
     po.no = document.getElementById('po-no').value || po.no;
     po.supplier = document.getElementById('po-supplier').value;
     po.date = document.getElementById('po-date').value;
+    po.deliveryDate = document.getElementById('po-delivery-date').value || null;
     po.items = items;
     po.notes = document.getElementById('po-notes').value;
     po.discount = parseFloat(document.getElementById('po-discount').value) || 0;
@@ -2601,6 +2603,7 @@ function savePO() {
       no: document.getElementById('po-no').value || generateNo('PO'),
       supplier: document.getElementById('po-supplier').value,
       date: document.getElementById('po-date').value,
+      deliveryDate: document.getElementById('po-delivery-date').value || null,
       items: items,
       notes: document.getElementById('po-notes').value,
       discount: parseFloat(document.getElementById('po-discount').value) || 0,
@@ -2854,6 +2857,11 @@ function loadPOIntoSO() {
 
   populateCustomerSelect('so-customer', po.supplier, 'outlet');
   showSelectedAddress('so-customer', 'so-customer-address');
+
+  // Tanggal Kirim SJ ikut Tanggal Kirim dari PO referensi, biar ga harus ganti manual
+  if (po.deliveryDate) {
+    document.getElementById('so-date').value = po.deliveryDate;
+  }
 
   document.getElementById('so-items').innerHTML = '';
   po.items.forEach(item => {
