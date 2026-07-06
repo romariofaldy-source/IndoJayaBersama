@@ -4977,15 +4977,15 @@ function generateSttpPreview(sttp) {
   let invRefHtml = '';
   let grandTotal = 0;
   if (Array.isArray(sttp.invNos) && sttp.invNos.length > 0) {
-    // Siapkan data tiap invoice: total, No SJ, dan tanggal kirim
+    // Siapkan data tiap invoice: total, No PO (bukan No SJ), dan tanggal kirim
     const invRows = sttp.invNos.map(invNo => {
       const inv = data.invs.find(i => i.no === invNo);
       const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
       const so = inv && inv.soRefId ? data.sos?.find(s => s.id === inv.soRefId) : null;
       const soByNo = (!so && inv?.soNo) ? data.sos?.find(s => s.no === inv.soNo) : null;
-      const sjNo = so?.no || soByNo?.no || inv?.soNo || '-';
+      const poNo = so?.poNo || soByNo?.poNo || inv?.poNo || '-'; // No PO yang direferensikan Surat Jalan
       const tglKirim = so?.date || soByNo?.date || inv?.deliveryDate || inv?.date; // fallback kalau SJ tidak ditemukan
-      return { invNo, invTotal, sjNo, tglKirim };
+      return { invNo, invTotal, poNo, tglKirim };
     });
     // Urutkan dari tanggal kirim paling awal (yg tidak ada tanggal diletakkan di akhir)
     invRows.sort((a, b) => {
@@ -5004,19 +5004,19 @@ function generateSttpPreview(sttp) {
               <tr>
                 <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Invoice</th>
                 <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">Tgl Kirim</th>
-                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">No SJ</th>
+                <th style="text-align:left;padding:6px 0;color:#1E5A96;font-weight:700">No PO</th>
                 <th style="text-align:right;padding:6px 0;color:#1E5A96;font-weight:700">Total</th>
               </tr>
             </thead>
             <tbody>
-            ${invRows.map(({ invNo, invTotal, sjNo, tglKirim }, idx) => {
+            ${invRows.map(({ invNo, invTotal, poNo, tglKirim }, idx) => {
               const invDate = tglKirim ? fmtDate(tglKirim) : '-';
               grandTotal += invTotal;
               return `
                 <tr style="${idx < invRows.length - 1 ? 'border-bottom:1px solid #ddd' : 'border-bottom:2px solid #1E5A96'}">
                   <td style="padding:8px 0;color:#1A1A2E;font-weight:600">${invNo}</td>
                   <td style="padding:8px 0;color:#666">${invDate}</td>
-                  <td style="padding:8px 0;color:#666">${sjNo}</td>
+                  <td style="padding:8px 0;color:#666">${poNo}</td>
                   <td style="text-align:right;padding:8px 0;color:#1A1A2E;font-weight:600">${rupiah(invTotal)}</td>
                 </tr>
               `;
