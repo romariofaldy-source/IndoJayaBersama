@@ -5323,13 +5323,17 @@ const DOT_MATRIX_CSS = `
   [style*="background:var("] { background: transparent !important; background-color: transparent !important; }
   img { max-width: 65px !important; max-height: 65px !important; height: auto !important; }
   @media print {
-    /* margin @page di-set 0 supaya Chrome TIDAK punya area buat nulis
-       header (nama file/URL) & footer (tanggal cetak) otomatis.
-       Margin visualnya dipindah jadi padding di body. */
+    /* margin @page di-set supaya ada jeda/napas antar halaman waktu tabel
+       kepotong ke halaman berikutnya — jangan 0 semua biar ga mepet banget. */
     @page { size: A4 portrait; margin: 0; }
-    body { margin: 0; padding: 10mm 12mm; }
-    thead { display: table-header-group; }
+    body { margin: 0; padding: 14mm 12mm 18mm; }
+    /* thead sengaja DIBIKIN "table-row-group" (bukan table-header-group)
+       supaya header tabel (NAMA BARANG/QTY/HARGA/SUBTOTAL) TIDAK diulang
+       otomatis oleh browser di setiap halaman baru saat tabel terpotong. */
+    thead { display: table-row-group !important; }
     tr { page-break-inside: avoid; }
+    /* Kasih jeda visual tiap kali baris terpotong ke halaman baru */
+    tr { break-inside: avoid; }
   }
 `;
 
