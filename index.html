@@ -4436,9 +4436,9 @@ function renderRekap() {
   }
 
   // Update period label
-  const fmtDate = d => d ? new Date(d).toLocaleDateString('id-ID') : '?';
+  const fmtDateOrUnknown = d => d ? new Date(d).toLocaleDateString('id-ID') : '?';
   document.getElementById('rekap-period-label').textContent =
-    `${fmtDate(dateFrom)} – ${fmtDate(dateTo)} · ${filtered.length} SJ · ${rows.length} baris`;
+    `${fmtDateOrUnknown(dateFrom)} – ${fmtDateOrUnknown(dateTo)} · ${filtered.length} SJ · ${rows.length} baris`;
 
   // Summary stats
   const totalQtyMap = {};
