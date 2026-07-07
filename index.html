@@ -5567,12 +5567,15 @@ function downloadDotMatrixPDF(containerId) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    // mb diperbesar jadi buffer "smart cut" — biar konten tidak mepet ke bawah halaman
-    const mx = 12, mt = 14, mb = 22;
+    // mb diperbesar jadi buffer "smart cut" — biar konten tidak mepet ke bawah halaman.
+    // mtFirst = jarak atas halaman pertama (normal, karena langsung nempel ke header dokumen).
+    // mtNext  = jarak atas halaman ke-2 dst — dibikin LEBIH BESAR biar baris yang lanjut
+    //           dari potongan halaman sebelumnya ga nempel banget ke tepi atas kertas.
+    const mx = 12, mtFirst = 14, mtNext = 26, mb = 22;
     const usableW = pageW - mx * 2;
-    const usableH = pageH - mt - mb;
+    const usableHFirst = pageH - mtFirst - mb;
+    const usableHNext = pageH - mtNext - mb;
     const mmPerPx = usableW / canvas.width;
-    const pageHPx = usableH / mmPerPx;
 
     const safeCuts = new Set([0]);
     const elTop = inner.getBoundingClientRect().top;
@@ -5584,7 +5587,10 @@ function downloadDotMatrixPDF(containerId) {
     const cutPoints = Array.from(safeCuts).sort((a, b) => a - b);
 
     let srcY = 0;
+    let pageIndex = 0;
     while (srcY < canvas.height) {
+      const mt = pageIndex === 0 ? mtFirst : mtNext;
+      const pageHPx = (pageIndex === 0 ? usableHFirst : usableHNext) / mmPerPx;
       const idealBottom = srcY + pageHPx;
       let cutY = idealBottom < canvas.height
         ? (cutPoints.filter(p => p > srcY && p <= idealBottom).pop() || idealBottom)
@@ -5601,6 +5607,7 @@ function downloadDotMatrixPDF(containerId) {
       if (srcY > 0) pdf.addPage();
       pdf.addImage(sc.toDataURL('image/png'), 'PNG', mx, mt, usableW, sliceH * mmPerPx);
       srcY = cutY;
+      pageIndex++;
     }
 
     const ts = new Date();
