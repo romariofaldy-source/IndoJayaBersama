@@ -3572,6 +3572,10 @@ function confirmPayment() {
   // biar gampang di-track statusnya udah ada progress pembayaran.
   inv.status = (paidAmount < total - 1) ? 'Lunas Sebagian' : 'Lunas';
 
+  // Kalau invoice ini bikin SEMUA invoice di suatu Tanda Terima jadi Lunas,
+  // otomatis tandai Tanda Terima itu Lunas juga
+  autoSyncSttpLunasStatus(data);
+
   saveData(data);
   renderInvs();
   renderDashboard();
@@ -5095,8 +5099,32 @@ function deleteSttp(id) {
   });
 }
 
+// Cek semua Tanda Terima: kalau SEMUA invoice yang ada di dalamnya udah
+// berstatus "Lunas" di menu Invoice, otomatis tandai STTP-nya "Lunas" juga
+// (tanpa perlu klik tombol "Tandai Lunas" manual). Return true kalau ada
+// perubahan, biar caller tau perlu saveData() apa nggak.
+function autoSyncSttpLunasStatus(data) {
+  let changed = false;
+  (data.sttps || []).forEach(sttp => {
+    if (sttp.status === 'lunas') return; // udah lunas, gak perlu dicek lagi
+    const invNos = Array.isArray(sttp.invNos) && sttp.invNos.length > 0 ? sttp.invNos : (sttp.invNo ? [sttp.invNo] : []);
+    if (invNos.length === 0) return;
+    const linkedInvs = invNos.map(no => data.invs.find(i => i.no === no)).filter(Boolean);
+    // Hanya auto-lunasin kalau SEMUA invoice yang direferensikan ketemu datanya
+    // DAN semuanya berstatus "Lunas" (bukan "Lunas Sebagian" atau belum bayar sama sekali)
+    if (linkedInvs.length === invNos.length && linkedInvs.every(inv => inv.status === 'Lunas')) {
+      sttp.status = 'lunas';
+      const paidDates = linkedInvs.map(inv => inv.paidDate).filter(Boolean).sort();
+      sttp.paidDate = paidDates.length > 0 ? paidDates[paidDates.length - 1] : today();
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 function renderSttps() {
   const data = loadData();
+  if (autoSyncSttpLunasStatus(data)) saveData(data);
   const tbody = document.getElementById('sttp-table');
   const summaryEl = document.getElementById('sttp-summary');
   const filtersEl = document.getElementById('sttp-filters');
