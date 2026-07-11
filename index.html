@@ -175,6 +175,9 @@
 
   /* Toast */
   .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text); color: #fff; padding: 14px 20px; border-radius: 8px; font-size: 13px; z-index: 999; animation: slideUp 0.3s; }
+  .toast-undo { display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 20px; }
+  .toast-undo-btn { background: var(--purple); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .toast-undo-btn:hover { opacity: 0.85; }
   .sync-indicator { position: fixed; top: 16px; right: 20px; background: #5EC68A; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.25s, transform 0.25s; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   .sync-indicator.show { opacity: 1; transform: translateY(0); }
   @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -1942,6 +1945,9 @@ function renderProducts() {
   `;
   }).join('');
   renderProductCards(data.products);
+  // Setelah render ulang, pastikan filter search yg lagi aktif tetap kepake
+  // (misal user lagi nyari produk, edit satu, save — jangan balik nampilin semua produk)
+  if (currentPage === 'products') handleSearch();
 }
 
 function renderProductCards(products) {
@@ -2014,11 +2020,22 @@ function setProductView(mode) {
 function deleteProduct(id) {
   if (confirm('Hapus produk ini?')) {
     const data = loadData();
+    const idx = data.products.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    const removed = data.products[idx];
+    const removedImage = getProductImage(removed);
     data.products = data.products.filter(p => p.id !== id);
     saveData(data);
     deleteProductImage(id);
     renderProducts();
-    showToast('Produk berhasil dihapus!');
+    showUndoToast(`Produk "${removed.name}" dihapus.`, () => {
+      const d2 = loadData();
+      d2.products.splice(idx, 0, removed);
+      saveData(d2);
+      if (removedImage) saveProductImage(id, removedImage);
+      renderProducts();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -2071,9 +2088,19 @@ function renderCustomers() {
 function deleteCustomer(id) {
   if (confirm('Hapus data ini?')) {
     const data = loadData();
+    const idx = data.customers.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    const removed = data.customers[idx];
     data.customers = data.customers.filter(c => c.id !== id);
     saveData(data);
     renderCustomers();
+    showUndoToast(`"${removed.name}" dihapus.`, () => {
+      const d2 = loadData();
+      d2.customers.splice(idx, 0, removed);
+      saveData(d2);
+      renderCustomers();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -2669,10 +2696,19 @@ function renderPOs() {
 function deletePO(id) {
   if (confirm('Hapus PO ini?')) {
     const data = loadData();
+    const idx = data.pos.findIndex(po => po.id === id);
+    if (idx === -1) return;
+    const removed = data.pos[idx];
     data.pos = data.pos.filter(po => po.id !== id);
     saveData(data);
     renderPOs();
-    showToast('PO berhasil dihapus!');
+    showUndoToast(`PO "${removed.no}" dihapus.`, () => {
+      const d2 = loadData();
+      d2.pos.splice(idx, 0, removed);
+      saveData(d2);
+      renderPOs();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -2799,10 +2835,19 @@ function renderMasuk() {
 function deleteMasuk(id) {
   if (confirm('Hapus data barang masuk ini?')) {
     const data = loadData();
+    const idx = data.masuks.findIndex(m => m.id === id);
+    if (idx === -1) return;
+    const removed = data.masuks[idx];
     data.masuks = data.masuks.filter(m => m.id !== id);
     saveData(data);
     renderMasuk();
-    showToast('Data berhasil dihapus!');
+    showUndoToast('Data barang masuk dihapus.', () => {
+      const d2 = loadData();
+      d2.masuks.splice(idx, 0, removed);
+      saveData(d2);
+      renderMasuk();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -3013,11 +3058,20 @@ function renderSOs() {
 function deleteSO(id) {
   if (confirm('Hapus Surat Jalan ini?')) {
     const data = loadData();
+    const idx = data.sos.findIndex(so => so.id === id);
+    if (idx === -1) return;
+    const removed = data.sos[idx];
     // ✅ Foto sudah disimpan di Firestore (base64), tidak perlu hapus dari Storage
     data.sos = data.sos.filter(so => so.id !== id);
     saveData(data);
     renderSOs();
-    showToast('Surat Jalan berhasil dihapus!');
+    showUndoToast(`Surat Jalan "${removed.no}" dihapus.`, () => {
+      const d2 = loadData();
+      d2.sos.splice(idx, 0, removed);
+      saveData(d2);
+      renderSOs();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -3450,10 +3504,19 @@ function confirmPayment() {
 function deleteInv(id) {
   if (confirm('Hapus Invoice ini?')) {
     const data = loadData();
+    const idx = data.invs.findIndex(inv => inv.id === id);
+    if (idx === -1) return;
+    const removed = data.invs[idx];
     data.invs = data.invs.filter(inv => inv.id !== id);
     saveData(data);
     renderInvs();
-    showToast('Invoice berhasil dihapus!');
+    showUndoToast(`Invoice "${removed.no}" dihapus.`, () => {
+      const d2 = loadData();
+      d2.invs.splice(idx, 0, removed);
+      saveData(d2);
+      renderInvs();
+      showToast('Penghapusan dibatalkan.');
+    });
   }
 }
 
@@ -4436,6 +4499,34 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+// Toast dengan tombol "Undo" — dipakai abis hapus data, biar kalau kepencet
+// gak sengaja bisa langsung dibalikin tanpa harus input ulang dari nol.
+function showUndoToast(message, undoFn, duration) {
+  duration = duration || 6000;
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-undo';
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = message;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo-btn';
+  btn.textContent = '↩️ Undo';
+  toast.appendChild(msgSpan);
+  toast.appendChild(btn);
+  document.body.appendChild(toast);
+
+  let done = false;
+  const dismiss = () => {
+    if (done) return;
+    done = true;
+    toast.remove();
+  };
+  btn.onclick = () => {
+    dismiss();
+    undoFn();
+  };
+  setTimeout(dismiss, duration);
+}
+
 // ===== REKAP PENGIRIMAN =====
 function initRekapPage() {
   const t = today();
@@ -4834,9 +4925,12 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
     const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
     const tglKirim = soRecord?.date || inv.deliveryDate || inv.date; // fallback ke tgl invoice kalau SJ tidak ditemukan
+    const lunasBadge = inv.status === 'Lunas'
+      ? ' <span style="background:#E8F5E9;color:#2E7D32;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px">✅ LUNAS</span>'
+      : '';
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.no}" ${checked} style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${fmtDate(tglKirim)} — ${rupiah(total)}</span>
+      <span><strong>${inv.no}</strong> — ${fmtDate(tglKirim)} — ${rupiah(total)}${lunasBadge}</span>
     </label>`;
   }).join('');
 }
@@ -4906,10 +5000,21 @@ function saveSttp() {
 function deleteSttp(id) {
   if (!confirm('Hapus Tanda Terima ini?')) return;
   const data = loadData();
-  data.sttps = (data.sttps || []).filter(s => s.id !== id);
+  if (!data.sttps) data.sttps = [];
+  const idx = data.sttps.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const removed = data.sttps[idx];
+  data.sttps = data.sttps.filter(s => s.id !== id);
   saveData(data);
   renderSttps();
-  showToast('Data berhasil dihapus.');
+  showUndoToast(`Tanda Terima "${removed.no}" dihapus.`, () => {
+    const d2 = loadData();
+    if (!d2.sttps) d2.sttps = [];
+    d2.sttps.splice(idx, 0, removed);
+    saveData(d2);
+    renderSttps();
+    showToast('Penghapusan dibatalkan.');
+  });
 }
 
 function renderSttps() {
@@ -4926,9 +5031,9 @@ function renderSttps() {
     // Breakdown nominal per invoice (bukan cuma total gabungan)
     const invBreakdown = invNos.map(no => {
       const inv = data.invs.find(i => i.no === no);
-      if (!inv) return { no, amount: 0, found: false };
+      if (!inv) return { no, amount: 0, found: false, isLunas: false };
       const gross = inv.items.reduce((s2, item) => s2 + (item.qty * item.price), 0);
-      return { no, amount: gross - (inv.discount || 0), found: true };
+      return { no, amount: gross - (inv.discount || 0), found: true, isLunas: inv.status === 'Lunas' };
     });
     const totalInv = invBreakdown.reduce((sum, b) => sum + b.amount, 0);
     return { s, invNos, invBreakdown, totalInv, status: getSttpPaymentStatus(s) };
@@ -4990,7 +5095,7 @@ function renderSttps() {
   tbody.innerHTML = [...filtered].reverse().map(({ s, invNos, invBreakdown, totalInv, status }) => {
     const cust = data.customers.find(c => c.id == s.customer);
     const invListHtml = invBreakdown.length > 0
-      ? invBreakdown.map(b => `<div style="white-space:nowrap">${b.no} — <strong>${b.found ? rupiah(b.amount) : '-'}</strong></div>`).join('')
+      ? invBreakdown.map(b => `<div style="white-space:nowrap">${b.no} — <strong>${b.found ? rupiah(b.amount) : '-'}</strong>${b.isLunas ? ' <span style="background:#E8F5E9;color:#2E7D32;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px">✅ LUNAS</span>' : ''}</div>`).join('')
       : '-';
     const toggleLabel = status.key === 'lunas' ? '↩️ Batal Lunas' : '✅ Tandai Lunas';
     return `<tr>
