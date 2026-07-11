@@ -1553,14 +1553,33 @@ function saveData(data) {
 
   // Simpan ke cloud (debounce sedikit biar gak spam write kalau ada banyak perubahan beruntun)
   if (!firestoreAvailable) return;
+  pendingCloudData = data;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer = setTimeout(() => {
-    cloudDocRef.set(data).catch(err => {
-      console.error('Gagal menyimpan ke cloud:', err);
-      showToast('Gagal sinkron ke cloud. Cek koneksi internet.');
-    });
-  }, 400);
+  cloudSaveTimer = setTimeout(flushCloudSave, 400);
 }
+
+// Kirim paksa data yang masih "nunggu debounce" ke cloud SEKARANG JUGA.
+// Ini penting buat kasus: user klik Simpan lalu LANGSUNG pindah app / kunci HP /
+// nutup tab dalam waktu <400ms — tanpa ini, data cuma nyimpen di localStorage
+// device itu doang dan GA PERNAH sampai ke cloud, jadi device lain gak akan lihat.
+let pendingCloudData = null;
+function flushCloudSave() {
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = null;
+  if (!pendingCloudData || !firestoreAvailable || !cloudDocRef) return;
+  const toSave = pendingCloudData;
+  pendingCloudData = null;
+  cloudDocRef.set(toSave).catch(err => {
+    console.error('Gagal menyimpan ke cloud:', err);
+    showToast('Gagal sinkron ke cloud. Cek koneksi internet.');
+  });
+}
+
+// Begitu tab/app di-minimize, pindah app, atau ditutup — paksa kirim sisa data yang pending
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushCloudSave();
+});
+window.addEventListener('pagehide', flushCloudSave);
 
 function getCompanyProfile() {
   const data = loadData();
