@@ -63,6 +63,7 @@
   .page-title { font-size: 18px; font-weight: 600; color: var(--text); }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
   .btn-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); cursor: pointer; font-size: 15px; transition: all 0.15s; flex-shrink: 0; }
+  .btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
   .btn-icon:hover { background: var(--bg); }
   .search-box { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; font-size: 14px; color: var(--text-muted); width: 220px; }
   .search-box input { background: none; border: none; outline: none; font-size: 14px; color: var(--text); width: 100%; }
@@ -337,6 +338,8 @@
       <div class="page-title" id="pageTitle">Dashboard</div>
     </div>
     <div class="topbar-right">
+      <button class="btn-icon" id="undoBtn" onclick="undoAction()" title="Undo (Ctrl+Z)" disabled>↩️</button>
+      <button class="btn-icon" id="redoBtn" onclick="redoAction()" title="Redo (Ctrl+Y)" disabled>↪️</button>
       <button class="btn-icon" id="quickThemeToggle" onclick="toggleDarkMode()" title="Ganti Mode Gelap/Terang">🌙</button>
       <div class="search-box">
         <span>🔍</span>
@@ -1538,7 +1541,30 @@ function compressImageDataUrl(dataUrl, maxWidth, quality) {
   });
 }
 
+// ===== UNDO / REDO (global, mencakup SEMUA modul — tambah/edit/hapus apapun) =====
+// Cara kerja: setiap kali saveData() dipanggil, snapshot data SEBELUM perubahan
+// disimpan ke undoHistory. Klik Undo -> balikin ke snapshot sebelumnya (dan simpan
+// state saat ini ke redoHistory buat bisa di-Redo lagi). Aksi baru otomatis
+// menghapus jalur Redo lama (perilaku standar undo/redo di aplikasi pada umumnya).
+let undoHistory = [];
+let redoHistory = [];
+const MAX_UNDO_HISTORY = 25;
+
 function saveData(data) {
+  // Rekam snapshot SEBELUM perubahan buat undo, lalu bersihin redo
+  if (appDataCache) {
+    undoHistory.push(JSON.stringify(appDataCache));
+    if (undoHistory.length > MAX_UNDO_HISTORY) undoHistory.shift();
+  }
+  redoHistory = [];
+  updateUndoRedoButtons();
+  persistData(data);
+}
+
+// Nulis data ke localStorage + cloud TANPA nyatet undo history — dipakai
+// oleh saveData() (kasus normal) dan undoAction()/redoAction() (biar aksi
+// undo/redo itu sendiri gak nambah entri undo history baru)
+function persistData(data) {
   appDataCache = data;
   // Cadangan lokal (biar tetap ada walau internet putus)
   try {
@@ -1560,6 +1586,58 @@ function saveData(data) {
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(flushCloudSave, 400);
 }
+
+function undoAction() {
+  if (undoHistory.length === 0) return;
+  if (isAnyModalOpen()) { showToast('Tutup form yang lagi kebuka dulu sebelum Undo.'); return; }
+  const prevSnapshot = undoHistory.pop();
+  redoHistory.push(JSON.stringify(appDataCache));
+  if (redoHistory.length > MAX_UNDO_HISTORY) redoHistory.shift();
+  const restored = JSON.parse(prevSnapshot);
+  persistData(restored);
+  renderActivePage(currentPage);
+  updateUndoRedoButtons();
+  showToast('↩️ Undo berhasil.');
+}
+
+function redoAction() {
+  if (redoHistory.length === 0) return;
+  if (isAnyModalOpen()) { showToast('Tutup form yang lagi kebuka dulu sebelum Redo.'); return; }
+  const nextSnapshot = redoHistory.pop();
+  undoHistory.push(JSON.stringify(appDataCache));
+  if (undoHistory.length > MAX_UNDO_HISTORY) undoHistory.shift();
+  const restored = JSON.parse(nextSnapshot);
+  persistData(restored);
+  renderActivePage(currentPage);
+  updateUndoRedoButtons();
+  showToast('↪️ Redo berhasil.');
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = undoHistory.length === 0;
+  if (redoBtn) redoBtn.disabled = redoHistory.length === 0;
+}
+
+// Shortcut keyboard: Ctrl+Z / Cmd+Z buat Undo, Ctrl+Y atau Ctrl+Shift+Z buat Redo.
+// Dimatikan kalau lagi fokus di input/textarea, biar gak bentrok sama undo bawaan
+// browser waktu user lagi ngetik di form.
+document.addEventListener('keydown', (e) => {
+  const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+  const isEditableField = activeTag === 'input' || activeTag === 'textarea' || document.activeElement?.isContentEditable;
+  if (isEditableField) return;
+  const ctrlOrCmd = e.ctrlKey || e.metaKey;
+  if (!ctrlOrCmd) return;
+  const key = e.key.toLowerCase();
+  if (key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    undoAction();
+  } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    redoAction();
+  }
+});
 
 // Kirim paksa data yang masih "nunggu debounce" ke cloud SEKARANG JUGA.
 // Ini penting buat kasus: user klik Simpan lalu LANGSUNG pindah app / kunci HP /
@@ -5901,6 +5979,7 @@ function startApp() {
   
   loadSettings();
 
+  updateUndoRedoButtons();
   startRealtimeSync();
 }
 
