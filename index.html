@@ -175,6 +175,8 @@
 
   /* Toast */
   .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text); color: #fff; padding: 14px 20px; border-radius: 8px; font-size: 13px; z-index: 999; animation: slideUp 0.3s; }
+  .sync-indicator { position: fixed; top: 16px; right: 20px; background: #5EC68A; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.25s, transform 0.25s; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .sync-indicator.show { opacity: 1; transform: translateY(0); }
   @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
   /* PDF Preview */
@@ -286,6 +288,8 @@
 </style>
 </head>
 <body>
+
+<div class="sync-indicator" id="syncIndicator">🔄 Data diperbarui otomatis</div>
 
 <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
@@ -4226,30 +4230,7 @@ function downloadPDF() {
 }
 
 // ===== UI FUNCTIONS =====
-function switchPage(pageName) {
-  currentPage = pageName;
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(pageName).classList.add('active');
-  event.target.classList.add('active');
-  
-  const titles = {
-    dashboard: '📊 Dashboard',
-    products: '📦 Produk',
-    po: '📋 PO Outlet',
-    masuk: '📥 Barang Masuk',
-    so: '🚚 Surat Jalan',
-    inv: '💰 Invoice',
-    customers: '👥 Supplier/Outlet',
-    settings: '⚙️ Pengaturan',
-    profile: '👤 Profil',
-    rekap: '📅 Rekap Pengiriman',
-    sttp: '🧾 Tanda Terima Dokumen'
-  };
-  
-  document.getElementById('pageTitle').textContent = titles[pageName] || 'Dashboard';
-  closeSidebar();
-  
+function renderActivePage(pageName) {
   if (pageName === 'dashboard') {
     renderDashboard();
   } else if (pageName === 'products') {
@@ -4278,8 +4259,88 @@ function switchPage(pageName) {
   }
 }
 
+function switchPage(pageName) {
+  currentPage = pageName;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(pageName).classList.add('active');
+  event.target.classList.add('active');
+  
+  const titles = {
+    dashboard: '📊 Dashboard',
+    products: '📦 Produk',
+    po: '📋 PO Outlet',
+    masuk: '📥 Barang Masuk',
+    so: '🚚 Surat Jalan',
+    inv: '💰 Invoice',
+    customers: '👥 Supplier/Outlet',
+    settings: '⚙️ Pengaturan',
+    profile: '👤 Profil',
+    rekap: '📅 Rekap Pengiriman',
+    sttp: '🧾 Tanda Terima Dokumen'
+  };
+  
+  document.getElementById('pageTitle').textContent = titles[pageName] || 'Dashboard';
+  closeSidebar();
+  
+  renderActivePage(pageName);
+}
+
+// ===== AUTO SYNC REAL-TIME =====
+// Dengerin perubahan data di cloud secara live — begitu device lain nyimpen
+// data baru (PO/SJ/Invoice/dll), device ini otomatis ke-refresh tanpa perlu
+// klik refresh manual. Kalau lagi ada modal kebuka (user lagi ngisi form),
+// auto-refresh DITUNDA dulu biar isian yang lagi diketik ga ke-reset/ilang.
+let realtimeUnsub = null;
+let pendingRealtimeUpdate = false;
+
+function isAnyModalOpen() {
+  return !!document.querySelector('.modal-overlay.open');
+}
+
+function startRealtimeSync() {
+  if (!firestoreAvailable || !cloudDocRef || realtimeUnsub) return;
+  realtimeUnsub = cloudDocRef.onSnapshot(snap => {
+    // Lewatin update dari write kita sendiri yang belum ke-confirm server,
+    // biar ga dobel-render pas kita baru aja nyimpen sesuatu.
+    if (snap.metadata.hasPendingWrites) return;
+    if (!snap.exists) return;
+
+    const cloud = snap.data() || {};
+    appDataCache = Object.assign(emptyData(), cloud);
+
+    if (isAnyModalOpen()) {
+      // Tunda render sampai modal ditutup, biar form yang lagi diisi ga keganggu
+      pendingRealtimeUpdate = true;
+      return;
+    }
+    renderActivePage(currentPage);
+    showSyncIndicator();
+  }, err => {
+    console.error('Realtime sync error:', err);
+  });
+}
+
+function showSyncIndicator() {
+  const el = document.getElementById('syncIndicator');
+  if (!el) return;
+  el.classList.add('show');
+  clearTimeout(showSyncIndicator._t);
+  showSyncIndicator._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// Dipanggil tiap kali modal ditutup — kalau ada update yang ketunda tadi, baru render sekarang
+function flushPendingRealtimeUpdate() {
+  if (pendingRealtimeUpdate && !isAnyModalOpen()) {
+    pendingRealtimeUpdate = false;
+    renderActivePage(currentPage);
+    showSyncIndicator();
+  }
+}
+
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+  flushPendingRealtimeUpdate();
 }
 
 function toggleSidebar() {
@@ -5707,11 +5768,16 @@ function startApp() {
   
   document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => {
-      if (e.target === m) m.classList.remove('open');
+      if (e.target === m) {
+        m.classList.remove('open');
+        flushPendingRealtimeUpdate();
+      }
     });
   });
   
   loadSettings();
+
+  startRealtimeSync();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
