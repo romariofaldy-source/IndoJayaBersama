@@ -1239,7 +1239,10 @@
       <button class="modal-close" onclick="closeModal('transferHistoryModal')">×</button>
     </div>
     <div class="modal-body">
-      <button class="btn btn-outline" style="margin-bottom:14px;" onclick="openImportModal('transfer')">📥 Import Riwayat Transfer dari Excel</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-outline" onclick="openImportModal('transfer')">📥 Import dari Excel</button>
+        <button class="btn btn-success" onclick="exportTableToExcel('transfer')">📤 Export Excel</button>
+      </div>
       <div id="transfer-history-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
     <div class="modal-footer">
@@ -1419,6 +1422,7 @@
 </div>
 
 <script>
+console.log('🟢 CLARITY-ERP TRANSFER-NOMINAL-FIX + EXPORT v1 aktif —', new Date().toISOString());
 // ===== FIREBASE / FIRESTORE SETUP =====
 const firebaseConfig = {
   apiKey: "AIzaSyDgZxEjG1DLFfJhwsV2YO9qS9IvYIhryMc",
@@ -2684,6 +2688,29 @@ function exportTableToExcel(type) {
         'Tanggal Dibayar': s.paidDate || '-',
         'Catatan': s.notes || '-'
       });
+    });
+  } else if (type === 'transfer') {
+    filename = 'Export-Riwayat-Transfer';
+    (data.paymentBatches || []).forEach(b => {
+      const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
+      const details = (b.invDetails && b.invDetails.length > 0)
+        ? b.invDetails
+        : (b.invNos || []).map((no, i) => {
+            const invId = (b.invIds || [])[i];
+            const inv = (invId !== undefined ? data.invs.find(x => x.id == invId) : null)
+              || data.invs.find(x => x.no === no && x.paymentBatchId === b.id)
+              || data.invs.find(x => x.no === no);
+            return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : 0 };
+          });
+      details.forEach(d => rows.push({
+        'No Referensi Transfer': b.id,
+        'Tanggal Transfer': b.date,
+        'Customer/Outlet': customer,
+        'No Invoice': d.no,
+        'Nominal Dibayar': d.amount,
+        'Total Transfer': b.amount,
+        'Catatan': b.notes || '-'
+      }));
     });
   }
 
@@ -4008,8 +4035,9 @@ function renderTransferHistory() {
       // di masing-masing invoice-nya (inv.paidAmount), jadi kita ambil dari sana aja
       : (b.invNos || []).map((no, i) => {
           const invId = (b.invIds || [])[i];
-          const inv = (invId !== undefined ? data.invs.find(x => x.id === invId) : null)
-            || data.invs.find(x => x.no === no && x.paymentBatchId === b.id);
+          const inv = (invId !== undefined ? data.invs.find(x => x.id == invId) : null)
+            || data.invs.find(x => x.no === no && x.paymentBatchId === b.id)
+            || data.invs.find(x => x.no === no);
           return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : null };
         });
 
