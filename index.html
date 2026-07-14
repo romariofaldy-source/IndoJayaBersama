@@ -2721,10 +2721,10 @@ function exportTableToExcel(type) {
   showToast('Excel berhasil didownload!');
 }
 
-// Export Riwayat Transfer — dipisah 2 sheet biar "Total Transfer" gak keulang-ulang
-// tiap baris invoice (yang bisa disalahartikan double). Sheet 1 = ringkasan per
-// transfer (1 baris = 1 transfer, total cuma sekali). Sheet 2 = detail per invoice
-// (nominal per invoice, TANPA kolom total transfer, biar aman kalau di-SUM).
+// Export Riwayat Transfer — 1 sheet, 1 baris = 1 invoice. "Total Transfer"
+// cuma ditampilin di baris PERTAMA invoice yang terhubung ke transfer itu,
+// baris invoice selanjutnya dalam transfer yang sama dikosongin biar gak
+// kesan double kalau di-SUM kolomnya.
 function exportTransferHistory(data) {
   const batches = data.paymentBatches || [];
   if (batches.length === 0) {
@@ -2742,58 +2742,41 @@ function exportTransferHistory(data) {
         return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : 0 };
       });
 
-  // Sheet 1: Ringkasan per transfer — total muncul cuma 1x per transfer
-  const ringkasanRows = batches.map(b => {
-    const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
-    const details = getDetails(b);
-    return {
-      'No Referensi Transfer': b.id,
-      'Tanggal Transfer': b.date,
-      'Customer/Outlet': customer,
-      'Jumlah Invoice': details.length,
-      'Daftar No Invoice': details.map(d => d.no).join(', '),
-      'Total Transfer': b.amount,
-      'Catatan': b.notes || '-'
-    };
-  });
-
-  // Sheet 2: Detail per invoice — nominal per invoice aja, TANPA kolom total transfer
-  const detailRows = [];
+  const rows = [];
   batches.forEach(b => {
     const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
     const details = getDetails(b);
-    details.forEach(d => detailRows.push({
+    details.forEach((d, i) => rows.push({
       'No Referensi Transfer': b.id,
       'Tanggal Transfer': b.date,
       'Customer/Outlet': customer,
       'No Invoice': d.no,
-      'Nominal Dibayar': d.amount
+      'Nominal Dibayar': d.amount,
+      'Total Transfer': i === 0 ? b.amount : '', // cuma di baris invoice pertama tiap transfer
+      'Catatan': i === 0 ? (b.notes || '-') : ''
     }));
   });
 
-  const autoCols = (rowsArr) => {
-    if (rowsArr.length === 0) return [];
-    return Object.keys(rowsArr[0]).map(key => {
-      const headerLen = key.length;
-      const maxContentLen = rowsArr.reduce((max, row) => {
-        const val = row[key];
-        const len = val === null || val === undefined ? 0 : String(val).length;
-        return Math.max(max, len);
-      }, 0);
-      return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
-    });
-  };
+  if (rows.length === 0) {
+    alert('Tidak ada data invoice untuk diexport');
+    return;
+  }
 
-  const wsRingkasan = XLSX.utils.json_to_sheet(ringkasanRows);
-  wsRingkasan['!cols'] = autoCols(ringkasanRows);
-  const wsDetail = XLSX.utils.json_to_sheet(detailRows);
-  wsDetail['!cols'] = autoCols(detailRows);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(key => {
+    const headerLen = key.length;
+    const maxContentLen = rows.reduce((max, row) => {
+      const val = row[key];
+      const len = val === null || val === undefined ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, 0);
+    return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
+  });
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan Transfer');
-  XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Per Invoice');
+  XLSX.utils.book_append_sheet(wb, ws, 'Riwayat Transfer');
   XLSX.writeFile(wb, `Export-Riwayat-Transfer-${today()}.xlsx`);
-  showToast('Excel berhasil didownload! (2 sheet: Ringkasan & Detail)');
+  showToast('Excel berhasil didownload!');
 }
 
 // ===== SEARCHABLE SELECT DROPDOWN =====
