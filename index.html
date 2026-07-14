@@ -2605,6 +2605,11 @@ function exportTableToExcel(type) {
   let rows = [];
   let filename = '';
 
+  if (type === 'transfer') {
+    exportTransferHistory(data);
+    return;
+  }
+
   if (type === 'products') {
     filename = 'Export-Produk';
     rows = data.products.map(p => ({
@@ -2689,29 +2694,6 @@ function exportTableToExcel(type) {
         'Catatan': s.notes || '-'
       });
     });
-  } else if (type === 'transfer') {
-    filename = 'Export-Riwayat-Transfer';
-    (data.paymentBatches || []).forEach(b => {
-      const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
-      const details = (b.invDetails && b.invDetails.length > 0)
-        ? b.invDetails
-        : (b.invNos || []).map((no, i) => {
-            const invId = (b.invIds || [])[i];
-            const inv = (invId !== undefined ? data.invs.find(x => x.id == invId) : null)
-              || data.invs.find(x => x.no === no && x.paymentBatchId === b.id)
-              || data.invs.find(x => x.no === no);
-            return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : 0 };
-          });
-      details.forEach(d => rows.push({
-        'No Referensi Transfer': b.id,
-        'Tanggal Transfer': b.date,
-        'Customer/Outlet': customer,
-        'No Invoice': d.no,
-        'Nominal Dibayar': d.amount,
-        'Total Transfer': b.amount,
-        'Catatan': b.notes || '-'
-      }));
-    });
   }
 
   if (rows.length === 0) {
@@ -2737,6 +2719,81 @@ function exportTableToExcel(type) {
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
   XLSX.writeFile(wb, `${filename}-${today()}.xlsx`);
   showToast('Excel berhasil didownload!');
+}
+
+// Export Riwayat Transfer — dipisah 2 sheet biar "Total Transfer" gak keulang-ulang
+// tiap baris invoice (yang bisa disalahartikan double). Sheet 1 = ringkasan per
+// transfer (1 baris = 1 transfer, total cuma sekali). Sheet 2 = detail per invoice
+// (nominal per invoice, TANPA kolom total transfer, biar aman kalau di-SUM).
+function exportTransferHistory(data) {
+  const batches = data.paymentBatches || [];
+  if (batches.length === 0) {
+    alert('Tidak ada data riwayat transfer untuk diexport');
+    return;
+  }
+
+  const getDetails = (b) => (b.invDetails && b.invDetails.length > 0)
+    ? b.invDetails
+    : (b.invNos || []).map((no, i) => {
+        const invId = (b.invIds || [])[i];
+        const inv = (invId !== undefined ? data.invs.find(x => x.id == invId) : null)
+          || data.invs.find(x => x.no === no && x.paymentBatchId === b.id)
+          || data.invs.find(x => x.no === no);
+        return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : 0 };
+      });
+
+  // Sheet 1: Ringkasan per transfer — total muncul cuma 1x per transfer
+  const ringkasanRows = batches.map(b => {
+    const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
+    const details = getDetails(b);
+    return {
+      'No Referensi Transfer': b.id,
+      'Tanggal Transfer': b.date,
+      'Customer/Outlet': customer,
+      'Jumlah Invoice': details.length,
+      'Daftar No Invoice': details.map(d => d.no).join(', '),
+      'Total Transfer': b.amount,
+      'Catatan': b.notes || '-'
+    };
+  });
+
+  // Sheet 2: Detail per invoice — nominal per invoice aja, TANPA kolom total transfer
+  const detailRows = [];
+  batches.forEach(b => {
+    const customer = data.customers.find(c => String(c.id) === String(b.customerId))?.name || 'Unknown';
+    const details = getDetails(b);
+    details.forEach(d => detailRows.push({
+      'No Referensi Transfer': b.id,
+      'Tanggal Transfer': b.date,
+      'Customer/Outlet': customer,
+      'No Invoice': d.no,
+      'Nominal Dibayar': d.amount
+    }));
+  });
+
+  const autoCols = (rowsArr) => {
+    if (rowsArr.length === 0) return [];
+    return Object.keys(rowsArr[0]).map(key => {
+      const headerLen = key.length;
+      const maxContentLen = rowsArr.reduce((max, row) => {
+        const val = row[key];
+        const len = val === null || val === undefined ? 0 : String(val).length;
+        return Math.max(max, len);
+      }, 0);
+      return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 60) };
+    });
+  };
+
+  const wsRingkasan = XLSX.utils.json_to_sheet(ringkasanRows);
+  wsRingkasan['!cols'] = autoCols(ringkasanRows);
+  const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+  wsDetail['!cols'] = autoCols(detailRows);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan Transfer');
+  XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Per Invoice');
+  XLSX.writeFile(wb, `Export-Riwayat-Transfer-${today()}.xlsx`);
+  showToast('Excel berhasil didownload! (2 sheet: Ringkasan & Detail)');
 }
 
 // ===== SEARCHABLE SELECT DROPDOWN =====
