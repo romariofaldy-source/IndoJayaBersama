@@ -4004,7 +4004,14 @@ function renderTransferHistory() {
     const cust = data.customers.find(c => String(c.id) === String(b.customerId));
     const details = (b.invDetails && b.invDetails.length > 0)
       ? b.invDetails
-      : (b.invNos || []).map(no => ({ no, amount: null })); // fallback data lama tanpa nominal per-invoice
+      // Data transfer lama (sebelum ada invDetails) — nominal per-invoice masih tersimpan
+      // di masing-masing invoice-nya (inv.paidAmount), jadi kita ambil dari sana aja
+      : (b.invNos || []).map((no, i) => {
+          const invId = (b.invIds || [])[i];
+          const inv = (invId !== undefined ? data.invs.find(x => x.id === invId) : null)
+            || data.invs.find(x => x.no === no && x.paymentBatchId === b.id);
+          return { no, amount: (inv && typeof inv.paidAmount === 'number') ? inv.paidAmount : null };
+        });
 
     const detailRows = details.map(d => `
       <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--border);">
