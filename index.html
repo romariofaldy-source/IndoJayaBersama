@@ -510,8 +510,7 @@
     <div id="inv" class="page">
       <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="openInvModal()">+ Buat Invoice</button>
-        <button class="btn btn-pdf" onclick="openTransferModal()">💸 Terima Transfer</button>
-        <button class="btn btn-outline" onclick="openTransferHistoryModal()">📜 Riwayat Transfer</button>
+        <button class="btn" style="background:#2E7D32;color:#fff" onclick="openPaymentModal()">💵 Catat Pembayaran Transfer</button>
         <button class="btn btn-success" onclick="exportTableToExcel('inv')">📤 Export Excel</button>
       </div>
       <div class="table-card">
@@ -534,6 +533,30 @@
           </thead>
           <tbody id="inv-table"></tbody>
         </table>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:20px">
+        <div class="table-header">
+          <div>
+            <div class="table-title">📜 Riwayat Pembayaran Transfer</div>
+            <div style="font-size:13px;color:var(--text-muted)">Tiap transfer masuk & invoice mana aja yang di-cover — biar gampang tracking</div>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal TF</th>
+                <th>Outlet</th>
+                <th style="text-align:right">Nominal TF</th>
+                <th>Invoice yang Dibayar</th>
+                <th>Catatan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="payment-history-table"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1189,60 +1212,41 @@
   </div>
 </div>
 
-<!-- TERIMA TRANSFER MODAL (alokasi 1 transfer ke banyak invoice) -->
-<div class="modal-overlay" id="transferModal">
+<!-- PAYMENT BATCH MODAL (transfer sekaligus buat beberapa invoice) -->
+<div class="modal-overlay" id="paymentBatchModal">
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
-      <div class="modal-title">💸 Terima Transfer Pembayaran</div>
-      <button class="modal-close" onclick="closeModal('transferModal')">×</button>
+      <div class="modal-title">💵 Catat Pembayaran Transfer</div>
+      <button class="modal-close" onclick="closeModal('paymentBatchModal')">×</button>
     </div>
     <div class="modal-body">
       <div class="form-group full">
-        <label>Customer/Outlet</label>
-        <select id="transfer-customer" onchange="onTransferCustomerChange()"></select>
+        <label>Outlet</label>
+        <select id="pb-outlet" onchange="renderPaymentBatchInvoices()"></select>
       </div>
-      <div class="form-group full">
+      <div class="form-group">
         <label>Tanggal Transfer</label>
-        <input type="date" id="transfer-date">
+        <input type="date" id="pb-date">
+      </div>
+      <div class="form-group">
+        <label>Nominal Transfer (Rp)</label>
+        <input type="number" id="pb-amount" min="0" oninput="updatePaymentBatchMatch()" placeholder="Contoh: 500000">
       </div>
       <div class="form-group full">
-        <label>Jumlah Transfer Diterima (Rp)</label>
-        <input type="number" id="transfer-amount" min="0" oninput="updateTransferSummary()" placeholder="Contoh: 5000000">
-      </div>
-      <div class="form-group full" style="margin-bottom:2px;">
-        <label style="display:flex;justify-content:space-between;align-items:center;">
-          <span>Pilih Invoice yang Dibayar</span>
-          <button type="button" class="btn btn-sm btn-outline" onclick="autoMatchTransfer()">🔍 Cocokkan Otomatis</button>
-        </label>
-        <div id="transfer-inv-checkboxes" style="border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;padding:10px 12px;background:var(--card-bg);display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:var(--text-muted)">Pilih customer dulu untuk melihat invoice yang belum lunas</span>
+        <label>Pilih Invoice yang Dibayar Transfer Ini</label>
+        <div id="pb-invoice-list" style="border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;padding:10px 12px;background:var(--card-bg);display:flex;flex-direction:column;gap:6px;">
+          <div style="color:var(--text-muted);font-size:13px;padding:8px 0">Pilih outlet dulu di atas ↑</div>
         </div>
       </div>
-      <div id="transfer-summary" style="background:var(--bg);padding:10px 12px;border-radius:8px;font-size:13px;margin-top:6px;"></div>
-      <div class="form-group full" style="margin-top:10px;">
+      <div class="form-group full" id="pb-match-summary" style="background:var(--bg);padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600"></div>
+      <div class="form-group full">
         <label>Catatan (Opsional)</label>
-        <textarea id="transfer-notes" placeholder="Misal: transfer via BCA a.n. Outlet XYZ"></textarea>
+        <textarea id="pb-notes" placeholder="Misal: transfer via BCA a.n. Budi"></textarea>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('transferModal')">Batal</button>
-      <button class="btn btn-primary" onclick="confirmTransfer()">✓ Alokasikan Pembayaran</button>
-    </div>
-  </div>
-</div>
-
-<!-- RIWAYAT TRANSFER MODAL -->
-<div class="modal-overlay" id="transferHistoryModal">
-  <div class="modal" style="max-width:560px">
-    <div class="modal-header">
-      <div class="modal-title">📜 Riwayat Alokasi Transfer</div>
-      <button class="modal-close" onclick="closeModal('transferHistoryModal')">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="transfer-history-list" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('transferHistoryModal')">Tutup</button>
+      <button class="btn btn-outline" onclick="closeModal('paymentBatchModal')">Batal</button>
+      <button class="btn btn-primary" onclick="savePaymentBatch()">✓ Simpan &amp; Tandai Lunas</button>
     </div>
   </div>
 </div>
@@ -1455,7 +1459,7 @@ const statuses = ['Draft', 'Confirmed', 'Completed', 'Cancelled'];
 const colors = { Draft: '#6BB5E8', Confirmed: '#7C6FF7', Completed: '#5EC68A', Cancelled: '#FF7B6E' };
 
 const emptyData = () => ({
-  products: [], customers: [], pos: [], sos: [], invs: [], masuks: [], sttps: [], paymentBatches: [], profile: {}, company: {}, logo: ''
+  products: [], customers: [], pos: [], sos: [], invs: [], masuks: [], sttps: [], payments: [], profile: {}, company: {}, logo: ''
 });
 
 let appDataCache = emptyData();
@@ -1473,7 +1477,7 @@ async function fetchCloudData() {
       invs: JSON.parse(localStorage.getItem('invs') || '[]'),
       masuks: JSON.parse(localStorage.getItem('masuks') || '[]'),
       sttps: JSON.parse(localStorage.getItem('sttps') || '[]'),
-      paymentBatches: JSON.parse(localStorage.getItem('paymentBatches') || '[]'),
+      payments: JSON.parse(localStorage.getItem('payments') || '[]'),
       profile: JSON.parse(localStorage.getItem('profile') || '{}'),
       company: JSON.parse(localStorage.getItem('company') || '{}'),
       logo: localStorage.getItem('logo') || ''
@@ -1504,7 +1508,7 @@ async function fetchCloudData() {
         invs: JSON.parse(localStorage.getItem('invs') || '[]'),
         masuks: JSON.parse(localStorage.getItem('masuks') || '[]'),
         sttps: JSON.parse(localStorage.getItem('sttps') || '[]'),
-        paymentBatches: JSON.parse(localStorage.getItem('paymentBatches') || '[]'),
+        payments: JSON.parse(localStorage.getItem('payments') || '[]'),
         profile: JSON.parse(localStorage.getItem('profile') || '{}'),
         company: JSON.parse(localStorage.getItem('company') || '{}'),
         logo: localStorage.getItem('logo') || ''
@@ -1523,7 +1527,7 @@ async function fetchCloudData() {
       invs: JSON.parse(localStorage.getItem('invs') || '[]'),
       masuks: JSON.parse(localStorage.getItem('masuks') || '[]'),
       sttps: JSON.parse(localStorage.getItem('sttps') || '[]'),
-      paymentBatches: JSON.parse(localStorage.getItem('paymentBatches') || '[]'),
+      payments: JSON.parse(localStorage.getItem('payments') || '[]'),
       profile: JSON.parse(localStorage.getItem('profile') || '{}'),
       company: JSON.parse(localStorage.getItem('company') || '{}'),
       logo: localStorage.getItem('logo') || ''
@@ -1638,7 +1642,7 @@ function persistData(data) {
     localStorage.setItem('invs', JSON.stringify(data.invs));
     localStorage.setItem('masuks', JSON.stringify(data.masuks));
     localStorage.setItem('sttps', JSON.stringify(data.sttps || []));
-    localStorage.setItem('paymentBatches', JSON.stringify(data.paymentBatches || []));
+    localStorage.setItem('payments', JSON.stringify(data.payments || []));
     localStorage.setItem('profile', JSON.stringify(data.profile));
     localStorage.setItem('company', JSON.stringify(data.company));
     if (data.logo) localStorage.setItem('logo', data.logo);
@@ -3529,6 +3533,7 @@ function saveInv() {
 
 function renderInvs() {
   const data = loadData();
+  renderPaymentHistory();
   const tbody = document.getElementById('inv-table');
   const todayStr = today();
 
@@ -3572,17 +3577,6 @@ function renderInvs() {
     const paidInfo = (isPartial && inv.paidAmount)
       ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">Diterima: ${rupiah(inv.paidAmount)} / ${rupiah(total)}</div>`
       : (isLunas && inv.paidDate ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">Dibayar ${fmtDate(inv.paidDate)}</div>` : '');
-
-    // Kalau invoice ini dibayar lewat 1 transfer sekaligus sama beberapa invoice lain,
-    // kasih tau di sini biar Mario ga bingung ini invoice bagian dari transfer yg mana
-    let batchInfo = '';
-    if (inv.paymentBatchId) {
-      const batch = (data.paymentBatches || []).find(b => b.id === inv.paymentBatchId);
-      if (batch && batch.invNos && batch.invNos.length > 1) {
-        const others = batch.invNos.filter(no => no !== inv.no);
-        batchInfo = `<div style="font-size:10px;color:var(--purple);margin-top:2px" title="Bareng: ${others.join(', ')}">🔗 1 transfer (${rupiah(batch.amount)}) bareng ${others.length} invoice lain</div>`;
-      }
-    }
     
     return `<tr style="${rowStyle}">
       <td><strong>${inv.no}</strong></td>
@@ -3592,7 +3586,7 @@ function renderInvs() {
       <td>${tglKirimDisplay}</td>
       <td>${dueDisplay}</td>
       <td>${rupiah(total)}</td>
-      <td><span class="badge ${badgeClass}">${badgeLabel}</span>${paidInfo}${batchInfo}</td>
+      <td><span class="badge ${badgeClass}">${badgeLabel}</span>${paidInfo}</td>
       <td>${sentDisplay}</td>
       <td class="action-btns">
         ${!isLunas ? `<button class="btn btn-sm btn-success" onclick="markInvLunas(${inv.id})">✓ ${isPartial ? 'Lunasi Sisa' : 'Lunas'}</button>` : ''}
@@ -3658,246 +3652,175 @@ function confirmPayment() {
   showToast(inv.status === 'Lunas' ? 'Pembayaran dikonfirmasi — Invoice Lunas!' : 'Pembayaran sebagian dicatat.');
 }
 
-// ===== TERIMA TRANSFER (alokasi 1 transfer ke banyak invoice sekaligus) =====
-// Dipakai kalau outlet TF sekaligus buat beberapa invoice, biar Mario gak perlu
-// nebak-nebak lagi invoice mana aja yang udah kebayar dari 1 nominal transfer.
-
-function invoiceTotal(inv) {
-  return inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
-}
-
-function invoiceOutstanding(inv) {
-  const total = invoiceTotal(inv);
-  const paid = (inv.status === 'Lunas Sebagian' || inv.status === 'Lunas') ? (inv.paidAmount || 0) : 0;
-  return Math.max(total - paid, 0);
-}
-
-function openTransferModal() {
+// ===== PEMBAYARAN TRANSFER SEKALIGUS (BEBERAPA INVOICE) =====
+// Dipakai waktu outlet transfer 1x buat nutup beberapa invoice sekaligus,
+// biar ke-record jelas "transfer segini, buat invoice apa aja" — gampang ditelusuri lagi nanti.
+function openPaymentModal() {
   const data = loadData();
-  const sel = document.getElementById('transfer-customer');
-  sel.innerHTML = '<option value="">-- Pilih Customer/Outlet --</option>' +
-    data.customers.map(c => `<option value="${c.id}">${c.name}${c.type === 'supplier' ? ' (Supplier)' : ' (Outlet)'}</option>`).join('');
-  document.getElementById('transfer-date').value = today();
-  document.getElementById('transfer-amount').value = '';
-  document.getElementById('transfer-notes').value = '';
-  renderTransferInvCheckboxes([]);
-  document.getElementById('transfer-summary').innerHTML = '';
-  document.getElementById('transferModal').classList.add('open');
+  populateCustomerSelect('pb-outlet', '', 'outlet');
+  document.getElementById('pb-date').value = today();
+  document.getElementById('pb-amount').value = '';
+  document.getElementById('pb-notes').value = '';
+  document.getElementById('pb-invoice-list').innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Pilih outlet dulu di atas ↑</div>';
+  document.getElementById('pb-match-summary').innerHTML = '';
+  document.getElementById('paymentBatchModal').classList.add('open');
 }
 
-function onTransferCustomerChange() {
+function renderPaymentBatchInvoices() {
   const data = loadData();
-  const custId = document.getElementById('transfer-customer').value;
-  if (!custId) { renderTransferInvCheckboxes([]); return; }
-  // Cuma invoice yang belum lunas (Belum Lunas / Lunas Sebagian) yang relevan buat ditagih
-  const custInvs = data.invs.filter(inv => String(inv.customer) === String(custId) && inv.status !== 'Lunas');
-  renderTransferInvCheckboxes(custInvs);
-  updateTransferSummary();
-}
-
-function renderTransferInvCheckboxes(invs) {
-  const box = document.getElementById('transfer-inv-checkboxes');
-  if (!invs || invs.length === 0) {
-    box.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Tidak ada invoice yang belum lunas untuk customer ini</span>';
+  const outletId = document.getElementById('pb-outlet').value;
+  const box = document.getElementById('pb-invoice-list');
+  if (!outletId) {
+    box.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Pilih outlet dulu di atas ↑</div>';
+    updatePaymentBatchMatch();
     return;
   }
-  box.innerHTML = invs.map(inv => {
-    const sisa = invoiceOutstanding(inv);
-    const partialTag = inv.status === 'Lunas Sebagian'
-      ? ` <span style="background:#FFF3E0;color:#E65100;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px">🟡 SEBAGIAN</span>`
-      : '';
+  // Cuma tampilin invoice outlet ini yang BELUM Lunas (Lunas Sebagian tetap muncul, sisa tagihannya yang keliatan)
+  const unpaidInvs = data.invs.filter(inv => inv.customer == outletId && inv.status !== 'Lunas');
+  if (unpaidInvs.length === 0) {
+    box.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Outlet ini gak ada invoice yang belum lunas 🎉</div>';
+    updatePaymentBatchMatch();
+    return;
+  }
+  box.innerHTML = unpaidInvs.map(inv => {
+    const total = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
+    const sudahDibayar = inv.paidAmount || 0;
+    const sisa = total - sudahDibayar;
+    const statusNote = inv.status === 'Lunas Sebagian' ? ` <span style="color:#a06000">(sudah bayar ${rupiah(sudahDibayar)}, sisa ${rupiah(sisa)})</span>` : '';
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
-      <input type="checkbox" value="${inv.id}" data-sisa="${sisa}" onchange="updateTransferSummary()" style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${fmtDate(inv.date)} — Sisa: ${rupiah(sisa)}${partialTag}</span>
+      <input type="checkbox" class="pb-inv-checkbox" value="${inv.id}" data-sisa="${sisa}" onchange="updatePaymentBatchMatch()" style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
+      <span><strong>${inv.no}</strong> — ${fmtDate(inv.date)} — ${rupiah(sisa)}${statusNote}</span>
     </label>`;
   }).join('');
+  updatePaymentBatchMatch();
 }
 
-function getCheckedTransferInvBoxes() {
-  return Array.from(document.querySelectorAll('#transfer-inv-checkboxes input[type="checkbox"]'));
-}
-
-function updateTransferSummary() {
-  const checked = getCheckedTransferInvBoxes().filter(cb => cb.checked);
-  const totalSelected = checked.reduce((s, cb) => s + parseFloat(cb.dataset.sisa || 0), 0);
-  const transferAmount = parseFloat(document.getElementById('transfer-amount').value) || 0;
-  const summaryEl = document.getElementById('transfer-summary');
-
-  if (checked.length === 0 && transferAmount === 0) {
-    summaryEl.innerHTML = '';
+function updatePaymentBatchMatch() {
+  const amount = parseFloat(document.getElementById('pb-amount').value) || 0;
+  const checked = document.querySelectorAll('.pb-inv-checkbox:checked');
+  const selectedTotal = Array.from(checked).reduce((s, cb) => s + (parseFloat(cb.dataset.sisa) || 0), 0);
+  const summary = document.getElementById('pb-match-summary');
+  if (checked.length === 0) {
+    summary.innerHTML = `<span style="color:var(--text-muted)">Belum ada invoice dipilih.</span>`;
+    summary.style.background = 'var(--bg)';
     return;
   }
-
-  const selisih = transferAmount - totalSelected;
-  let statusHtml;
-  if (transferAmount === 0) {
-    statusHtml = `<span style="color:var(--text-muted)">Isi jumlah transfer buat dicek kecocokannya.</span>`;
-  } else if (checked.length === 0) {
-    statusHtml = `<span style="color:var(--text-muted)">Belum ada invoice yang dipilih.</span>`;
-  } else if (Math.abs(selisih) < 1) {
-    statusHtml = `<span style="color:#2E7D32;font-weight:700">✅ Cocok! Nominal transfer sesuai total invoice terpilih.</span>`;
+  const selisih = amount - selectedTotal;
+  let color, msg;
+  if (Math.abs(selisih) < 1) {
+    color = '#2E7D32'; msg = `✅ Pas! ${checked.length} invoice dipilih = ${rupiah(selectedTotal)}`;
   } else if (selisih > 0) {
-    statusHtml = `<span style="color:#a06000;font-weight:700">⚠️ Kurang ${rupiah(selisih)} — mungkin ada invoice lain yang belum dicentang.</span>`;
+    color = '#a06000'; msg = `⚠️ Transfer lebih besar ${rupiah(selisih)} dari total invoice yang dipilih (${rupiah(selectedTotal)}). Cek lagi ada invoice lain yang kelewat kepilih atau ini emang ada kelebihan bayar.`;
   } else {
-    statusHtml = `<span style="color:#d44;font-weight:700">⚠️ Lebih ${rupiah(-selisih)} — coba cek lagi invoice yang dipilih.</span>`;
+    color = '#d44'; msg = `⚠️ Transfer kurang ${rupiah(Math.abs(selisih))} dari total invoice yang dipilih (${rupiah(selectedTotal)}). Cek lagi mungkin ada invoice yang harusnya gak usah dicentang.`;
   }
-
-  summaryEl.innerHTML = `
-    <div>Total ${checked.length} invoice terpilih: <strong>${rupiah(totalSelected)}</strong></div>
-    <div>Jumlah transfer: <strong>${rupiah(transferAmount)}</strong></div>
-    <div style="margin-top:4px">${statusHtml}</div>
-  `;
+  summary.innerHTML = `<span style="color:${color}">${msg}</span>`;
+  summary.style.background = 'var(--bg)';
 }
 
-// Cari kombinasi invoice yang jumlahnya paling pas sama nominal transfer
-// (subset-sum sederhana, cukup buat jumlah invoice per outlet yg biasanya <20-an)
-function autoMatchTransfer() {
-  const transferAmount = Math.round(parseFloat(document.getElementById('transfer-amount').value) || 0);
-  if (!transferAmount) {
-    showToast('Isi jumlah transfer dulu ya, baru bisa dicariin kombinasinya.');
-    return;
-  }
-  const boxes = getCheckedTransferInvBoxes();
-  if (boxes.length === 0) {
-    showToast('Ga ada invoice yang belum lunas untuk customer ini.');
-    return;
-  }
-  const items = boxes.map((cb, idx) => ({ idx, amount: Math.round(parseFloat(cb.dataset.sisa || 0)) }));
-  items.sort((a, b) => b.amount - a.amount);
+function savePaymentBatch() {
+  const outletId = document.getElementById('pb-outlet').value;
+  const date = document.getElementById('pb-date').value;
+  const amount = parseFloat(document.getElementById('pb-amount').value) || 0;
+  const notes = document.getElementById('pb-notes').value.trim();
+  const checked = Array.from(document.querySelectorAll('.pb-inv-checkbox:checked'));
 
-  // Total sisa dari index i sampai akhir (buat pruning cabang yg gapunya harapan)
-  const suffixSum = new Array(items.length + 1).fill(0);
-  for (let i = items.length - 1; i >= 0; i--) suffixSum[i] = suffixSum[i + 1] + items[i].amount;
-
-  let best = null; // kombinasi dengan selisih paling kecil
-  let evaluations = 0;
-  const MAX_EVAL = 300000; // batas aman biar ga ngegantung kalau invoice-nya kebanyakan
-
-  function search(i, chosenSum, chosen) {
-    evaluations++;
-    if (evaluations > MAX_EVAL) return true; // stop, pakai best yg udah ketemu sejauh ini
-
-    const diff = Math.abs(transferAmount - chosenSum);
-    if (best === null || diff < best.diff) best = { diff, chosen: chosen.slice() };
-    if (diff === 0) return true; // exact match ketemu, langsung berhenti
-
-    if (i >= items.length) return false;
-
-    // Pruning: kalau nambahin SEMUA sisa item masih kurang dari target, itu berarti
-    // sum maksimal yg bisa dicapai dari cabang ini ya nambahin semuanya — catat sbg
-    // kandidat kalau lebih deket, terus gausah explore submnya lagi (percuma, pasti lebih jauh)
-    if (chosenSum + suffixSum[i] < transferAmount) {
-      const maxDiff = transferAmount - (chosenSum + suffixSum[i]);
-      if (best === null || maxDiff < best.diff) best = { diff: maxDiff, chosen: chosen.concat(items.slice(i)) };
-      return false;
-    }
-
-    // Coba: masukin item ke-i
-    chosen.push(items[i]);
-    if (search(i + 1, chosenSum + items[i].amount, chosen)) return true;
-    chosen.pop();
-
-    // Coba: skip item ke-i
-    if (search(i + 1, chosenSum, chosen)) return true;
-
-    return false;
-  }
-
-  search(0, 0, []);
-
-  boxes.forEach(cb => cb.checked = false);
-  if (best && best.chosen.length > 0) {
-    best.chosen.forEach(it => { boxes[it.idx].checked = true; });
-    updateTransferSummary();
-    if (best.diff < 1) {
-      showToast('🔍 Ketemu kombinasi yang pas!');
-    } else {
-      showToast(`🔍 Kombinasi terdekat ditemukan, masih selisih ${rupiah(best.diff)}. Cek manual lagi ya.`);
-    }
-  } else {
-    showToast('Ga ketemu kombinasi yang cocok, coba cek manual satu-satu.');
-  }
-}
-
-function confirmTransfer() {
-  const custId = document.getElementById('transfer-customer').value;
-  const date = document.getElementById('transfer-date').value;
-  const transferAmount = parseFloat(document.getElementById('transfer-amount').value) || 0;
-  const notes = document.getElementById('transfer-notes').value.trim();
-  const checked = getCheckedTransferInvBoxes().filter(cb => cb.checked);
-
-  if (!custId) { showToast('Pilih customer/outlet dulu ya.'); return; }
+  if (!outletId) { showToast('Pilih outlet dulu ya.'); return; }
   if (!date) { showToast('Isi tanggal transfer dulu ya.'); return; }
-  if (!transferAmount) { showToast('Isi jumlah transfer dulu ya.'); return; }
-  if (checked.length === 0) { showToast('Pilih minimal 1 invoice yang dibayar dari transfer ini.'); return; }
-
-  const totalSelected = checked.reduce((s, cb) => s + parseFloat(cb.dataset.sisa || 0), 0);
-  const selisih = transferAmount - totalSelected;
-  if (Math.abs(selisih) >= 1) {
-    const ok = confirm(`Total invoice terpilih (${rupiah(totalSelected)}) beda ${rupiah(Math.abs(selisih))} dari nominal transfer (${rupiah(transferAmount)}). Tetap lanjutkan?`);
-    if (!ok) return;
-  }
+  if (!amount) { showToast('Isi nominal transfer dulu ya.'); return; }
+  if (checked.length === 0) { showToast('Pilih minimal 1 invoice yang dibayar transfer ini.'); return; }
 
   const data = loadData();
-  if (!data.paymentBatches) data.paymentBatches = [];
-  const batchId = 'batch_' + Date.now();
+  const invIds = checked.map(cb => Number(cb.value));
   const invNos = [];
+  const invBreakdown = []; // {no, amount} per invoice — biar riwayat bisa nunjukin nominal per invoice
 
-  checked.forEach(cb => {
-    const invId = Number(cb.value);
-    const inv = data.invs.find(i => i.id === invId);
+  invIds.forEach(id => {
+    const inv = data.invs.find(i => i.id === id);
     if (!inv) return;
-    const total = invoiceTotal(inv);
+    const invAmount = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
     inv.paidDate = date;
-    inv.paidAmount = total;
+    inv.paidAmount = invAmount;
+    inv.paidNotes = notes;
     inv.status = 'Lunas';
-    inv.paymentBatchId = batchId;
     invNos.push(inv.no);
+    invBreakdown.push({ no: inv.no, amount: invAmount });
   });
 
-  data.paymentBatches.push({
-    id: batchId,
+  if (!data.payments) data.payments = [];
+  data.payments.push({
+    id: Date.now(),
     date,
-    customerId: custId,
-    amount: transferAmount,
-    invIds: checked.map(cb => Number(cb.value)),
+    customerId: outletId,
+    amount,
     invNos,
+    invBreakdown,
     notes
   });
 
   autoSyncSttpLunasStatus(data);
   saveData(data);
+  closeModal('paymentBatchModal');
   renderInvs();
   renderDashboard();
-  closeModal('transferModal');
-  showToast(`✓ Transfer ${rupiah(transferAmount)} dialokasikan ke ${invNos.length} invoice: ${invNos.join(', ')}`);
+  showToast(`Pembayaran dicatat — ${invNos.length} invoice ditandai Lunas!`);
 }
 
-function openTransferHistoryModal() {
-  renderTransferHistory();
-  document.getElementById('transferHistoryModal').classList.add('open');
-}
-
-function renderTransferHistory() {
+function renderPaymentHistory() {
   const data = loadData();
-  const list = document.getElementById('transfer-history-list');
-  const batches = (data.paymentBatches || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
-  if (batches.length === 0) {
-    list.innerHTML = '<span style="font-size:13px;color:var(--text-muted)">Belum ada riwayat transfer yang dialokasikan.</span>';
+  const tbody = document.getElementById('payment-history-table');
+  if (!tbody) return;
+  const payments = data.payments || [];
+  if (payments.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Belum ada riwayat pembayaran transfer.</td></tr>`;
     return;
   }
-  list.innerHTML = batches.map(b => {
-    const cust = data.customers.find(c => String(c.id) === String(b.customerId));
-    return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong>${cust ? cust.name : 'Unknown'}</strong>
-        <span style="font-size:12px;color:var(--text-muted)">${fmtDate(b.date)}</span>
-      </div>
-      <div style="font-size:13px;margin-top:2px;">Transfer: <strong>${rupiah(b.amount)}</strong></div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Invoice: ${(b.invNos || []).join(', ') || '-'}</div>
-      ${b.notes ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">📝 ${b.notes}</div>` : ''}
-    </div>`;
+  // Terbaru di atas
+  const sorted = [...payments].sort((a, b) => new Date(b.date) - new Date(a.date));
+  tbody.innerHTML = sorted.map(p => {
+    const outletName = data.customers.find(c => c.id == p.customerId)?.name || 'Unknown';
+    let invListHtml;
+    if (Array.isArray(p.invBreakdown) && p.invBreakdown.length > 0) {
+      // Data baru: udah ada nominal per invoice yang tercatat pas transfer ini disimpan
+      invListHtml = p.invBreakdown.map(b => `<div>${b.no} — <strong>${rupiah(b.amount)}</strong></div>`).join('');
+    } else if (Array.isArray(p.invNos) && p.invNos.length > 0) {
+      // Data lama (sebelum fitur nominal per invoice ada) — coba ambil total invoice saat ini sebagai perkiraan
+      invListHtml = p.invNos.map(no => {
+        const inv = data.invs.find(i => i.no === no);
+        const amt = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : null;
+        return `<div>${no}${amt !== null ? ` — <strong>${rupiah(amt)}</strong>` : ''}</div>`;
+      }).join('');
+    } else {
+      invListHtml = '-';
+    }
+    return `<tr>
+      <td>${fmtDate(p.date)}</td>
+      <td>${outletName}</td>
+      <td style="text-align:right;font-weight:600">${rupiah(p.amount)}</td>
+      <td style="font-size:12px">${invListHtml}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${p.notes || '-'}</td>
+      <td><button class="btn-icon" onclick="deletePaymentRecord(${p.id})" title="Hapus riwayat ini">🗑️</button></td>
+    </tr>`;
   }).join('');
+}
+
+function deletePaymentRecord(id) {
+  if (!confirm('Hapus riwayat pembayaran ini? (status Lunas invoice-nya TIDAK ikut berubah, ini cuma hapus catatan riwayatnya aja)')) return;
+  const data = loadData();
+  const idx = (data.payments || []).findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const removed = data.payments[idx];
+  data.payments = data.payments.filter(p => p.id !== id);
+  saveData(data);
+  renderPaymentHistory();
+  showUndoToast('Riwayat pembayaran dihapus.', () => {
+    const d2 = loadData();
+    if (!d2.payments) d2.payments = [];
+    d2.payments.splice(idx, 0, removed);
+    saveData(d2);
+    renderPaymentHistory();
+    showToast('Penghapusan dibatalkan.');
+  });
 }
 
 function deleteInv(id) {
