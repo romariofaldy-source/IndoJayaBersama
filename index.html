@@ -4716,9 +4716,9 @@ function generatePDFPreview(type) {
     detailRightHtml = rows;
   }
 
-  // Catatan — khusus Surat Jalan, kotak lebar 80%
+  // Catatan — kotak lebar untuk Surat Jalan & PO Outlet supaya jelas terlihat
   let catatanHtml = '';
-  if (isSJ) {
+  if (isSJ || (type === 'po' && doc.notes)) {
     catatanHtml = `
       <div style="width:80%;margin-top:20px;padding:14px 16px;border:1px solid #BBDEFB;border-radius:10px;background:#FAFAFE">
         <div style="font-size:12px;font-weight:700;color:#1E5A96;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Catatan</div>
@@ -4828,7 +4828,7 @@ function generatePDFPreview(type) {
         </div>
         <div style="text-align:right">
           ${detailRightHtml}
-          ${(!isSJ && doc.notes) ? `<p style="font-size:12px;color:#8A8A9A;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
+          ${(isInv && doc.notes) ? `<p style="font-size:12px;color:#8A8A9A;margin-top:10px;max-width:200px">📝 ${doc.notes}</p>` : ''}
         </div>
       </div>
       
