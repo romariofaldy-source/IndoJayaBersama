@@ -4703,17 +4703,19 @@ function generatePDFPreview(type) {
   const isSJ = type === 'so';
   const isInv = type === 'inv';
   
-  let partyLabel, partyName, partyAddr, partyPhone;
+  let partyLabel, partyName, partyCompany, partyAddr, partyPhone;
   if (type === 'po') {
     partyLabel = 'Outlet';
     const supplier = data.customers.find(c => c.id == doc.supplier);
     partyName = supplier?.name || 'Unknown';
+    partyCompany = supplier?.company || '';
     partyAddr = supplier?.address || '';
     partyPhone = supplier?.phone || '';
   } else {
     partyLabel = 'Kepada Yth';
     const customer = data.customers.find(c => c.id == doc.customer);
     partyName = customer?.name || 'Unknown';
+    partyCompany = customer?.company || '';
     partyAddr = customer?.address || '';
     partyPhone = customer?.phone || '';
   }
@@ -4897,7 +4899,7 @@ function generatePDFPreview(type) {
       <div class="doc-header" style="margin-bottom:20px">
         <div>
           <p style="font-size:11px;color:#8A8A9A;text-transform:uppercase;margin-bottom:4px">${partyLabel}</p>
-          <strong style="font-size:15px">${partyName}</strong>
+          ${partyCompany ? `<strong style="font-size:15px;display:block">${partyCompany}</strong><div style="font-size:13px;font-weight:600;margin-top:2px">${partyName}</div>` : `<strong style="font-size:15px">${partyName}</strong>`}
           ${partyAddr ? `<p style="font-size:12px;color:#8A8A9A;margin-top:4px">${partyAddr}</p>` : ''}
           ${partyPhone ? `<p style="font-size:12px;color:#8A8A9A">Telp: ${partyPhone}</p>` : ''}
         </div>
