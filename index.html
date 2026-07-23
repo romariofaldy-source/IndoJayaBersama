@@ -625,6 +625,7 @@
         <table>
           <thead>
             <tr>
+              <th>Nama PT</th>
               <th>Nama</th>
               <th>Tipe</th>
               <th>No Telepon</th>
@@ -1350,6 +1351,10 @@
           <option value="supplier">Supplier</option>
           <option value="outlet">Outlet</option>
         </select>
+      </div>
+      <div class="form-group full">
+        <label>Nama PT</label>
+        <input type="text" id="customer-company" placeholder="PT / Perusahaan (Opsional)">
       </div>
       <div class="form-group full">
         <label>Nama</label>
@@ -2286,6 +2291,7 @@ function openCustomerModal() {
   editingCustomerId = null;
   document.getElementById('customerModalTitle').textContent = 'Tambah Supplier/Outlet';
   document.getElementById('customer-type').value = 'supplier';
+  document.getElementById('customer-company').value = '';
   document.getElementById('customer-name').value = '';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-address').value = '';
@@ -2299,6 +2305,7 @@ function editCustomer(id) {
   editingCustomerId = id;
   document.getElementById('customerModalTitle').textContent = 'Edit Supplier/Outlet';
   document.getElementById('customer-type').value = c.type;
+  document.getElementById('customer-company').value = c.company || '';
   document.getElementById('customer-name').value = c.name;
   document.getElementById('customer-phone').value = c.phone || '';
   document.getElementById('customer-address').value = c.address || '';
@@ -2318,6 +2325,7 @@ function saveCustomer() {
     const c = data.customers.find(c => c.id === editingCustomerId);
     if (c) {
       c.type = document.getElementById('customer-type').value;
+      c.company = document.getElementById('customer-company').value;
       c.name = name;
       c.phone = document.getElementById('customer-phone').value;
       c.address = document.getElementById('customer-address').value;
@@ -2327,6 +2335,7 @@ function saveCustomer() {
     const customer = {
       id: Date.now(),
       type: document.getElementById('customer-type').value,
+      company: document.getElementById('customer-company').value,
       name: name,
       phone: document.getElementById('customer-phone').value,
       address: document.getElementById('customer-address').value
@@ -2343,6 +2352,7 @@ function saveCustomer() {
   populateCustomerSelect('so-customer', '', 'outlet');
   populateCustomerSelect('inv-customer', '', 'outlet');
   populateCustomerSelect('masuk-supplier', '', 'supplier');
+  document.getElementById('customer-company').value = '';
   document.getElementById('customer-name').value = '';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-address').value = '';
@@ -2353,6 +2363,7 @@ function renderCustomers() {
   const tbody = document.getElementById('customer-table');
   tbody.innerHTML = data.customers.map(c => `
     <tr>
+      <td>${c.company || '-'}</td>
       <td><strong>${c.name}</strong></td>
       <td><span class="badge ${c.type === 'supplier' ? 'badge-purple' : 'badge-blue'}">${c.type}</span></td>
       <td>${c.phone}</td>
@@ -2447,8 +2458,8 @@ function downloadImportTemplate() {
     filename = 'Template-Import-Riwayat-Transfer.xlsx';
   } else {
     ws = XLSX.utils.aoa_to_sheet([
-      ['Tipe (supplier/outlet)', 'Nama', 'No Telepon', 'Alamat'],
-      ['Contoh: supplier', 'PT Sumber Makmur', '0812xxxxxxx', 'Jl. Contoh No. 1, Jakarta']
+      ['Tipe (supplier/outlet)', 'Nama', 'Nama PT', 'No Telepon', 'Alamat'],
+      ['Contoh: supplier', 'Budi Santoso', 'PT Sumber Makmur', '0812xxxxxxx', 'Jl. Contoh No. 1, Jakarta']
     ]);
     filename = 'Template-Import-Customer.xlsx';
   }
@@ -2614,9 +2625,11 @@ function importCustomers(rows) {
     if (!name) return;
     let type = String(getExcelField(row, 'tipe', 'type') || 'supplier').trim().toLowerCase();
     if (type !== 'supplier' && type !== 'outlet') type = 'supplier';
+    const company = String(getExcelField(row, 'nama pt', 'perusahaan', 'company') || '').trim();
     data.customers.push({
       id: Date.now() + idx,
       type,
+      company,
       name,
       phone: String(getExcelField(row, 'no telepon', 'telepon', 'phone') || '').trim(),
       address: String(getExcelField(row, 'alamat', 'address') || '').trim()
@@ -2751,7 +2764,7 @@ function exportTableToExcel(type) {
   } else if (type === 'customers') {
     filename = 'Export-Supplier-Outlet';
     rows = data.customers.map(c => ({
-      'Nama': c.name, 'Tipe': c.type, 'No Telepon': c.phone, 'Alamat': c.address
+      'Nama PT': c.company || '', 'Nama': c.name, 'Tipe': c.type, 'No Telepon': c.phone, 'Alamat': c.address
     }));
   } else if (type === 'po') {
     filename = 'Export-PO-Outlet';
