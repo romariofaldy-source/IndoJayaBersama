@@ -1046,7 +1046,7 @@
 <div class="modal-overlay" id="masukModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Barang Masuk</div>
+      <div class="modal-title" id="masukModalTitle">Barang Masuk</div>
       <button class="modal-close" onclick="closeModal('masukModal')">×</button>
     </div>
     <div class="modal-body">
@@ -1544,6 +1544,7 @@ if (firestoreAvailable) {
 
 // ===== DATA MANAGEMENT =====
 let currentPage = 'dashboard';
+let tableSearchQuery = { po: '', so: '', inv: '' };
 let pdfDocData = {};
 const statuses = ['Draft', 'Confirmed', 'Completed', 'Cancelled'];
 const colors = { Draft: '#6BB5E8', Confirmed: '#7C6FF7', Completed: '#5EC68A', Cancelled: '#FF7B6E' };
@@ -1855,6 +1856,13 @@ function fmtDate(dateStr) {
 
 function generateNo(prefix) {
   return prefix + '-' + Date.now().toString().slice(-6);
+}
+
+// Cek apakah nomor dokumen (PO/SJ/Invoice) sudah dipakai record lain
+function isDuplicateNo(list, no, excludeId) {
+  const target = String(no).trim().toLowerCase();
+  if (!target) return false;
+  return list.some(item => item.id !== excludeId && String(item.no || '').trim().toLowerCase() === target);
 }
 
 // ===== THEME (DARK MODE & ACCENT COLOR) =====
@@ -3123,9 +3131,9 @@ function savePO() {
   const data = loadData();
   const items = Array.from(document.getElementById('po-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value || 'pcs',
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   if (items.length === 0 || items.some(i => !i.name)) {
@@ -3140,6 +3148,12 @@ function savePO() {
 
   if (!document.getElementById('po-no').value.trim()) {
     alert('Nomor PO tidak boleh kosong. Isi sesuai nomor PO yang dibuat outlet.');
+    return;
+  }
+
+  const poNoValue = document.getElementById('po-no').value.trim();
+  if (isDuplicateNo(data.pos, poNoValue, editingPOId)) {
+    alert(`Nomor PO "${poNoValue}" sudah dipakai di PO lain. Gunakan nomor yang berbeda.`);
     return;
   }
   
@@ -3179,8 +3193,21 @@ function savePO() {
 function renderPOs() {
   const data = loadData();
   const tbody = document.getElementById('po-table');
-  
-  tbody.innerHTML = data.pos.map(po => {
+  const q = tableSearchQuery.po;
+
+  const filtered = data.pos.filter(po => {
+    if (!q) return true;
+    const supplier = data.customers.find(c => c.id == po.supplier)?.name || '';
+    const haystack = `${po.no} ${supplier} ${po.status} ${po.notes || ''}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
+  if (filtered.length === 0 && data.pos.length > 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada PO yang cocok dengan pencarian "${q}"</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(po => {
     const supplier = data.customers.find(c => c.id == po.supplier)?.name || 'Unknown';
     const total = po.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (po.discount || 0);
     const badgeClass = po.status === 'Selesai' ? 'badge-green' : po.status === 'Diproses' ? 'badge-amber' : 'badge-blue';
@@ -3274,8 +3301,27 @@ function selectMasukItem(element, name) {
   row.querySelector('.dropdown-list').classList.remove('open');
 }
 
+let editingMasukId = null;
+
 function openMasukModal() {
+  editingMasukId = null;
+  document.getElementById('masukModalTitle').textContent = 'Barang Masuk';
   resetMasukModal();
+  document.getElementById('masukModal').classList.add('open');
+}
+
+function editMasuk(id) {
+  const data = loadData();
+  const masuk = data.masuks.find(m => m.id === id);
+  if (!masuk) return;
+  editingMasukId = id;
+  document.getElementById('masukModalTitle').textContent = 'Edit Barang Masuk';
+  document.getElementById('masuk-ref').value = masuk.ref || '';
+  document.getElementById('masuk-supplier').value = masuk.supplier || '';
+  document.getElementById('masuk-date').value = masuk.date || today();
+  document.getElementById('masuk-notes').value = masuk.notes || '';
+  document.getElementById('masuk-items').innerHTML = '';
+  masuk.items.forEach(item => addMasukItem(item.name, item.qtyReceived));
   document.getElementById('masukModal').classList.add('open');
 }
 
@@ -3292,30 +3338,46 @@ function saveMasuk() {
     return;
   }
 
-  const masuk = {
-    id: Date.now(),
-    ref: document.getElementById('masuk-ref').value,
-    supplier: document.getElementById('masuk-supplier').value,
-    date: document.getElementById('masuk-date').value,
-    items: items,
-    notes: document.getElementById('masuk-notes').value
-  };
+  function adjustStock(itemList, direction) {
+    // direction: 1 = tambah stock, -1 = kurangi stock (buat balikin item lama saat edit)
+    itemList.forEach(item => {
+      const product = data.products.find(p => p.name === item.name);
+      if (product) product.stock = (product.stock || 0) + direction * item.qtyReceived;
+    });
+  }
 
-  data.masuks.push(masuk);
-
-  // Update stock produk
-  data.products.forEach(product => {
-    const received = items.find(i => i.name === product.name);
-    if (received) {
-      product.stock = (product.stock || 0) + received.qtyReceived;
-    }
-  });
+  if (editingMasukId) {
+    const masuk = data.masuks.find(m => m.id === editingMasukId);
+    if (!masuk) return;
+    // Balikkan stock dari item lama, baru terapkan stock dari item baru
+    adjustStock(masuk.items || [], -1);
+    adjustStock(items, 1);
+    masuk.ref = document.getElementById('masuk-ref').value;
+    masuk.supplier = document.getElementById('masuk-supplier').value;
+    masuk.date = document.getElementById('masuk-date').value;
+    masuk.items = items;
+    masuk.notes = document.getElementById('masuk-notes').value;
+    showToast('Barang masuk berhasil direvisi!');
+  } else {
+    const masuk = {
+      id: Date.now(),
+      ref: document.getElementById('masuk-ref').value,
+      supplier: document.getElementById('masuk-supplier').value,
+      date: document.getElementById('masuk-date').value,
+      items: items,
+      notes: document.getElementById('masuk-notes').value
+    };
+    data.masuks.push(masuk);
+    adjustStock(items, 1);
+    showToast('Barang masuk berhasil dicatat!');
+  }
 
   saveData(data);
   closeModal('masukModal');
   renderMasuk();
+  renderProducts();
+  editingMasukId = null;
   resetMasukModal();
-  showToast('Barang masuk berhasil dicatat!');
 }
 
 function renderMasuk() {
@@ -3332,6 +3394,7 @@ function renderMasuk() {
       <td>${masuk.items.reduce((sum, i) => sum + i.qtyReceived, 0)}</td>
       <td>${fmtDate(masuk.date)}</td>
       <td class="action-btns">
+        <button class="btn btn-sm btn-outline" onclick="editMasuk(${masuk.id})">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteMasuk(${masuk.id})">Hapus</button>
       </td>
     </tr>
@@ -3345,20 +3408,33 @@ function deleteMasuk(id) {
     const idx = data.masuks.findIndex(m => m.id === id);
     if (idx === -1) return;
     const removed = data.masuks[idx];
+    // Balikkan stock yang tadinya ditambahkan saat barang masuk ini dicatat
+    removed.items.forEach(item => {
+      const product = data.products.find(p => p.name === item.name);
+      if (product) product.stock = (product.stock || 0) - item.qtyReceived;
+    });
     data.masuks = data.masuks.filter(m => m.id !== id);
     saveData(data);
     renderMasuk();
+    renderProducts();
     showUndoToast('Data barang masuk dihapus.', () => {
       const d2 = loadData();
       d2.masuks.splice(idx, 0, removed);
+      // Tambahkan lagi stock-nya karena data dikembalikan (undo)
+      removed.items.forEach(item => {
+        const product = d2.products.find(p => p.name === item.name);
+        if (product) product.stock = (product.stock || 0) + item.qtyReceived;
+      });
       saveData(d2);
       renderMasuk();
+      renderProducts();
       showToast('Penghapusan dibatalkan.');
     });
   }
 }
 
 function resetMasukModal() {
+  editingMasukId = null;
   document.getElementById('masuk-ref').value = '';
   document.getElementById('masuk-supplier').value = '';
   document.getElementById('masuk-date').value = today();
@@ -3483,9 +3559,9 @@ function saveSO() {
   const data = loadData();
   const items = Array.from(document.getElementById('so-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value,
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   if (items.length === 0 || items.some(i => !i.name)) {
@@ -3498,11 +3574,33 @@ function saveSO() {
     return;
   }
 
+  const soNoValue = document.getElementById('so-no').value.trim();
+  if (!soNoValue) {
+    alert('Nomor Surat Jalan tidak boleh kosong.');
+    return;
+  }
+  if (isDuplicateNo(data.sos, soNoValue, editingSOId)) {
+    alert(`Nomor Surat Jalan "${soNoValue}" sudah dipakai di SJ lain. Gunakan nomor yang berbeda.`);
+    return;
+  }
+
   const poRefId = document.getElementById('so-po-ref').value || null;
   const poRef = poRefId ? data.pos.find(p => p.id == poRefId) : null;
-  
+
+  function adjustStock(itemList, direction) {
+    // direction: 1 = tambah stock kembali, -1 = kurangi stock
+    itemList.forEach(item => {
+      const product = data.products.find(p => p.name === item.name);
+      if (product) product.stock = (product.stock || 0) + direction * item.qty;
+    });
+  }
+
   if (editingSOId) {
     const so = data.sos.find(s => s.id === editingSOId);
+    // Kembalikan stock dari item lama dulu, baru kurangi dengan item baru,
+    // supaya stock akurat walau qty/barang direvisi
+    adjustStock(so.items || [], 1);
+    adjustStock(items, -1);
     so.no = document.getElementById('so-no').value || so.no;
     so.customer = document.getElementById('so-customer').value;
     so.date = document.getElementById('so-date').value;
@@ -3526,6 +3624,7 @@ function saveSO() {
       poId: poRefId,
       poNo: poRef ? poRef.no : null
     };
+    adjustStock(items, -1);
     data.sos.push(so);
     showToast('Surat Jalan berhasil disimpan!');
   }
@@ -3539,14 +3638,38 @@ function saveSO() {
   closeModal('soModal');
   renderSOs();
   renderPOs();
+  renderProducts();
   resetSOModal();
+
+  // Peringatan halus (tidak memblokir) kalau ada barang yang stocknya jadi minus
+  const lowItems = items
+    .map(item => data.products.find(p => p.name === item.name))
+    .filter(p => p && p.stock < 0);
+  if (lowItems.length > 0) {
+    setTimeout(() => {
+      showToast(`⚠️ Stock minus: ${[...new Set(lowItems.map(p => p.name))].join(', ')}`);
+    }, 600);
+  }
 }
 
 function renderSOs() {
   const data = loadData();
   const tbody = document.getElementById('so-table');
+  const q = tableSearchQuery.so;
+
+  const filtered = data.sos.filter(so => {
+    if (!q) return true;
+    const customer = data.customers.find(c => c.id == so.customer)?.name || '';
+    const haystack = `${so.no} ${customer} ${so.poNo || ''} ${so.status} ${so.driver || ''} ${so.notes || ''}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
+  if (filtered.length === 0 && data.sos.length > 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"</td></tr>`;
+    return;
+  }
   
-  tbody.innerHTML = data.sos.map(so => {
+  tbody.innerHTML = filtered.map(so => {
     const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
     const badgeClass = so.status === 'Selesai' ? 'badge-green' : 'badge-blue';
     const photoCount = (so.photos || []).length;
@@ -3578,14 +3701,26 @@ function deleteSO(id) {
     if (idx === -1) return;
     const removed = data.sos[idx];
     // ✅ Foto sudah disimpan di Firestore (base64), tidak perlu hapus dari Storage
+    // Kembalikan stock yang tadinya dikurangi saat SJ ini dibuat
+    (removed.items || []).forEach(item => {
+      const product = data.products.find(p => p.name === item.name);
+      if (product) product.stock = (product.stock || 0) + item.qty;
+    });
     data.sos = data.sos.filter(so => so.id !== id);
     saveData(data);
     renderSOs();
+    renderProducts();
     showUndoToast(`Surat Jalan "${removed.no}" dihapus.`, () => {
       const d2 = loadData();
       d2.sos.splice(idx, 0, removed);
+      // Kurangi lagi stock-nya karena SJ dikembalikan (undo)
+      (removed.items || []).forEach(item => {
+        const product = d2.products.find(p => p.name === item.name);
+        if (product) product.stock = (product.stock || 0) - item.qty;
+      });
       saveData(d2);
       renderSOs();
+      renderProducts();
       showToast('Penghapusan dibatalkan.');
     });
   }
@@ -3836,9 +3971,9 @@ function saveInv() {
   const data = loadData();
   const items = Array.from(document.getElementById('inv-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value || 'pcs',
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   if (items.length === 0 || items.some(i => !i.name)) {
@@ -3848,6 +3983,16 @@ function saveInv() {
 
   if (!document.getElementById('inv-customer').value) {
     alert('Pilih customer terlebih dahulu');
+    return;
+  }
+
+  const invNoValue = document.getElementById('inv-no').value.trim();
+  if (!invNoValue) {
+    alert('Nomor Invoice tidak boleh kosong.');
+    return;
+  }
+  if (isDuplicateNo(data.invs, invNoValue, editingInvId)) {
+    alert(`Nomor Invoice "${invNoValue}" sudah dipakai di Invoice lain. Gunakan nomor yang berbeda.`);
     return;
   }
 
@@ -3914,7 +4059,20 @@ function renderInvs() {
     invNos.forEach(no => sentInvNos.add(no));
   });
 
-  tbody.innerHTML = data.invs.map(inv => {
+  const q = tableSearchQuery.inv;
+  const filteredInvs = data.invs.filter(inv => {
+    if (!q) return true;
+    const customer = data.customers.find(c => c.id == inv.customer)?.name || '';
+    const haystack = `${inv.no} ${customer} ${inv.soNo || ''} ${inv.status}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
+  if (filteredInvs.length === 0 && data.invs.length > 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada Invoice yang cocok dengan pencarian "${q}"</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filteredInvs.map(inv => {
     const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
     const total = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0) - (inv.discount || 0);
     const isLunas = inv.status === 'Lunas';
@@ -4586,9 +4744,9 @@ function previewPO() {
   const data = loadData();
   const items = Array.from(document.getElementById('po-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value || 'pcs',
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   const po = {
@@ -4616,9 +4774,9 @@ function previewSO() {
   const data = loadData();
   const items = Array.from(document.getElementById('so-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value,
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   const so = {
@@ -4646,9 +4804,9 @@ function previewInv() {
   const data = loadData();
   const items = Array.from(document.getElementById('inv-items').querySelectorAll('tr')).map(row => ({
     name: row.querySelector('[name="itemName"]').value,
-    qty: parseFloat(row.querySelector('[name="qty"]').value),
+    qty: parseFloat(row.querySelector('[name="qty"]').value) || 0,
     uom: row.querySelector('[name="itemUOM"]').value || 'pcs',
-    price: parseFloat(row.querySelector('[name="itemPrice"]').value)
+    price: parseFloat(row.querySelector('[name="itemPrice"]').value) || 0
   }));
   
   const inv = {
@@ -5165,7 +5323,23 @@ function switchPage(pageName) {
   
   document.getElementById('pageTitle').textContent = titles[pageName] || 'Dashboard';
   closeSidebar();
-  
+
+  // Reset kotak pencarian tiap pindah halaman biar gak ada filter nyangkut
+  const searchEl = document.getElementById('searchInput');
+  if (searchEl) {
+    searchEl.value = '';
+    const searchPlaceholders = {
+      po: 'Cari PO / outlet...',
+      so: 'Cari SJ / customer...',
+      inv: 'Cari invoice / customer...',
+      masuk: 'Cari barang masuk...',
+      customers: 'Cari supplier/outlet...',
+      products: 'Cari produk...'
+    };
+    searchEl.placeholder = searchPlaceholders[pageName] || 'Cari...';
+  }
+  tableSearchQuery = { po: '', so: '', inv: '' };
+
   renderActivePage(pageName);
 }
 
@@ -5256,25 +5430,16 @@ function handleSearch() {
     });
 
   } else if (currentPage === 'po') {
-    document.querySelectorAll('#po-table tr').forEach(tr => {
-      if (!tr.cells || tr.cells.length < 2) return;
-      const text = tr.innerText.toLowerCase();
-      tr.style.display = !q || text.includes(q) ? '' : 'none';
-    });
+    tableSearchQuery.po = q;
+    renderPOs();
 
   } else if (currentPage === 'so') {
-    document.querySelectorAll('#so-table tr').forEach(tr => {
-      if (!tr.cells || tr.cells.length < 2) return;
-      const text = tr.innerText.toLowerCase();
-      tr.style.display = !q || text.includes(q) ? '' : 'none';
-    });
+    tableSearchQuery.so = q;
+    renderSOs();
 
   } else if (currentPage === 'inv') {
-    document.querySelectorAll('#inv-table tr').forEach(tr => {
-      if (!tr.cells || tr.cells.length < 2) return;
-      const text = tr.innerText.toLowerCase();
-      tr.style.display = !q || text.includes(q) ? '' : 'none';
-    });
+    tableSearchQuery.inv = q;
+    renderInvs();
 
   } else if (currentPage === 'masuk') {
     document.querySelectorAll('#masuk-table tr').forEach(tr => {
