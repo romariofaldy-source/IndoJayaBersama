@@ -270,6 +270,9 @@
   .product-card-margin.negative { background: var(--coral-light); }
   .product-card-actions { display: flex; gap: 6px; margin-top: 8px; }
   .product-card-actions .btn { flex: 1; }
+  .product-card-stock-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.65); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; z-index: 1; }
+  .product-card-stock-badge.low { background: #d44; }
+  .product-card-img { position: relative; }
 
   /* Logo Upload */
   .logo-preview { width: 80px; height: 80px; border-radius: 13px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; }
@@ -2230,9 +2233,12 @@ function renderProductCards(products) {
     const isNegative = margin < 0;
     const img = getProductImage(p);
     const searchKey = `${p.name || ''} ${p.sku || ''}`.toLowerCase();
+    const stock = p.stock || 0;
+    const isLowStock = stock <= 0;
     return `
     <div class="product-card" data-search="${searchKey.replace(/"/g, '&quot;')}">
       <div class="product-card-img">
+        <span class="product-card-stock-badge${isLowStock ? ' low' : ''}">Stok: ${stock}</span>
         ${img ? `<img src="${img}" alt="${p.name}">` : '📦'}
       </div>
       <div class="product-card-body">
@@ -3351,12 +3357,23 @@ function saveMasuk() {
     return;
   }
 
+  function normName(s) { return (s || '').toString().trim().toLowerCase(); }
+
   function adjustStock(itemList, direction) {
     // direction: 1 = tambah stock, -1 = kurangi stock (buat balikin item lama saat edit)
+    // Dicocokkan pakai nama yang di-trim + huruf kecil biar gak gagal cuma gara-gara
+    // beda kapital atau ada spasi nyempil (sering kejadian kalau nama diketik manual
+    // atau produk hasil import Excel).
+    const unmatched = [];
     itemList.forEach(item => {
-      const product = data.products.find(p => p.name === item.name);
-      if (product) product.stock = (product.stock || 0) + direction * item.qtyReceived;
+      const product = data.products.find(p => normName(p.name) === normName(item.name));
+      if (product) {
+        product.stock = (product.stock || 0) + direction * item.qtyReceived;
+      } else if (direction > 0) {
+        unmatched.push(item.name);
+      }
     });
+    return unmatched;
   }
 
   if (editingMasukId) {
@@ -3364,13 +3381,17 @@ function saveMasuk() {
     if (!masuk) return;
     // Balikkan stock dari item lama, baru terapkan stock dari item baru
     adjustStock(masuk.items || [], -1);
-    adjustStock(items, 1);
+    const unmatched = adjustStock(items, 1);
     masuk.ref = document.getElementById('masuk-ref').value;
     masuk.supplier = document.getElementById('masuk-supplier').value;
     masuk.date = document.getElementById('masuk-date').value;
     masuk.items = items;
     masuk.notes = document.getElementById('masuk-notes').value;
-    showToast('Barang masuk berhasil direvisi!');
+    if (unmatched.length) {
+      showToast(`⚠️ Barang masuk direvisi, TAPI stok "${unmatched.join(', ')}" tidak ke-update (nama tidak cocok dengan produk manapun).`);
+    } else {
+      showToast('Barang masuk berhasil direvisi!');
+    }
   } else {
     const masuk = {
       id: Date.now(),
@@ -3381,8 +3402,12 @@ function saveMasuk() {
       notes: document.getElementById('masuk-notes').value
     };
     data.masuks.push(masuk);
-    adjustStock(items, 1);
-    showToast('Barang masuk berhasil dicatat!');
+    const unmatched = adjustStock(items, 1);
+    if (unmatched.length) {
+      showToast(`⚠️ Barang masuk tersimpan, TAPI stok "${unmatched.join(', ')}" tidak ke-update (nama tidak cocok dengan produk manapun). Pilih nama dari dropdown saat input.`);
+    } else {
+      showToast('Barang masuk berhasil dicatat!');
+    }
   }
 
   saveData(data);
