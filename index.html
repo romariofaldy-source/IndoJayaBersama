@@ -3095,28 +3095,37 @@ function selectPOItem(element, name, sku, price, uom) {
 }
 
 function calculateTotal() {
+  // Update subtotal tiap baris dulu (aman digabung, tiap baris independen)
   const rows = document.querySelectorAll('#po-items tr, #so-items tr, #inv-items tr');
-  let total = 0;
-  
   rows.forEach(row => {
     const qty = parseFloat(row.querySelector('[name="qty"]')?.value || 0);
     const price = parseFloat(row.querySelector('[name="itemPrice"]')?.value || 0);
     const subtotal = qty * price;
     const subtotalInput = row.querySelector('[name="subtotal"]');
     if (subtotalInput) subtotalInput.value = subtotal;
-    total += subtotal;
   });
-  
+
+  // Total per tabel DIHITUNG TERPISAH (jangan digabung!) — sebelumnya semua baris
+  // dari po-items + so-items + inv-items dijumlah jadi satu "total" bareng-bareng,
+  // jadi kalau tabel SJ/Invoice masih ada sisa baris dari sesi sebelumnya (modal
+  // ditutup tapi isinya gak ke-reset), total PO ikut kebawa salah.
+  const sumTable = (tbodyId) => Array.from(document.querySelectorAll(`#${tbodyId} tr`))
+    .reduce((sum, row) => {
+      const qty = parseFloat(row.querySelector('[name="qty"]')?.value || 0);
+      const price = parseFloat(row.querySelector('[name="itemPrice"]')?.value || 0);
+      return sum + (qty * price);
+    }, 0);
+
   const poDiscount = parseFloat(document.getElementById('po-discount')?.value || 0);
   const poTotal = document.getElementById('po-total');
-  if (poTotal) poTotal.textContent = rupiah(Math.max(0, total - poDiscount));
-  
+  if (poTotal) poTotal.textContent = rupiah(Math.max(0, sumTable('po-items') - poDiscount));
+
   const soTotal = document.getElementById('so-total');
-  if (soTotal) soTotal.textContent = rupiah(total);
-  
+  if (soTotal) soTotal.textContent = rupiah(sumTable('so-items'));
+
   const invDiscount = parseFloat(document.getElementById('inv-discount')?.value || 0);
   const invTotal = document.getElementById('inv-total');
-  if (invTotal) invTotal.textContent = rupiah(Math.max(0, total - invDiscount));
+  if (invTotal) invTotal.textContent = rupiah(Math.max(0, sumTable('inv-items') - invDiscount));
 }
 
 function openPOModal() {
