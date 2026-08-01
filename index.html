@@ -819,6 +819,7 @@
             <div class="form-group" style="align-self:flex-end">
               <button class="btn btn-primary" onclick="renderRekap()">🔍 Tampilkan</button>
               <button class="btn btn-outline" style="margin-left:8px" onclick="exportRekapExcel()">📤 Export Excel</button>
+              <button class="btn btn-success" style="margin-left:8px" onclick="exportOrderFormExcel()">📋 Buat Form Order Outlet</button>
             </div>
           </div>
         </div>
@@ -5851,6 +5852,86 @@ function exportRekapExcel() {
   XLSX.utils.book_append_sheet(wb, ws2, 'Per Item-Outlet');
   XLSX.writeFile(wb, `Rekap-Pengiriman-${dateFrom || 'all'}-sd-${dateTo || 'all'}.xlsx`);
   showToast('Rekap berhasil didownload!');
+}
+
+// Buat "Form Order" siap pakai buat 1 outlet tertentu — isinya daftar barang yang
+// pernah dikirim ke outlet itu (dari histori Surat Jalan), lengkap sama harga
+// terakhir & rata-rata qty biasanya, plus kolom "Qty Order" kosong yang tinggal
+// diisi manual buat bikin order baru.
+function exportOrderFormExcel() {
+  const data = loadData();
+  const outletId = document.getElementById('rekap-outlet').value;
+  if (!outletId) {
+    alert('Pilih dulu outlet-nya di filter (bukan "Semua Outlet") untuk buat Form Order.');
+    return;
+  }
+  const outlet = data.customers.find(c => c.id == outletId);
+  const dateFrom = document.getElementById('rekap-date-from').value;
+  const dateTo = document.getElementById('rekap-date-to').value;
+
+  const filtered = data.sos
+    .filter(so => String(so.customer) === String(outletId) &&
+      (!dateFrom || so.date >= dateFrom) && (!dateTo || so.date <= dateTo))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '')); // urut lama->baru biar "harga terakhir" akurat
+
+  if (filtered.length === 0) {
+    alert(`Belum ada riwayat Surat Jalan untuk outlet "${outlet?.name || ''}" pada periode yang dipilih.`);
+    return;
+  }
+
+  // Kelompokkan per nama barang: harga & UOM diambil dari SJ paling baru, qty & frekuensi diakumulasi
+  const map = {};
+  filtered.forEach(so => {
+    so.items.forEach(item => {
+      if (!map[item.name]) map[item.name] = { uom: item.uom || 'pcs', lastPrice: 0, totalQty: 0, freq: 0, lastDate: so.date };
+      const g = map[item.name];
+      g.uom = item.uom || g.uom;
+      g.lastPrice = item.price || g.lastPrice;
+      g.lastDate = so.date;
+      g.totalQty += (item.qty || 0);
+      g.freq += 1;
+    });
+  });
+
+  const items = Object.entries(map).sort((a, b) => b[1].totalQty - a[1].totalQty);
+
+  const rows = items.map(([name, g], idx) => ({
+    'No': idx + 1,
+    'Nama Barang': name,
+    'UOM': g.uom,
+    'Harga Terakhir': g.lastPrice,
+    'Rata-rata Qty/Kirim': Math.round((g.totalQty / g.freq) * 10) / 10,
+    'Jumlah Order': '',
+    'Subtotal': ''
+  }));
+
+  const title = `FORM ORDER - ${outlet?.name || 'Outlet'}`;
+  const periodLabel = `Berdasarkan histori kirim: ${dateFrom ? fmtDate(dateFrom) : 'awal'} s/d ${dateTo ? fmtDate(dateTo) : 'sekarang'}`;
+
+  const ws = XLSX.utils.aoa_to_sheet([
+    [title],
+    [outlet?.address || ''],
+    [periodLabel],
+    []
+  ]);
+  XLSX.utils.sheet_add_json(ws, rows, { origin: 'A5' });
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+  const colKeys = Object.keys(rows[0]);
+  ws['!cols'] = colKeys.map(key => {
+    const headerLen = key.length;
+    const maxContentLen = rows.reduce((max, row) => {
+      const val = row[key];
+      const len = val === null || val === undefined ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, 0);
+    return { wch: Math.min(Math.max(headerLen, maxContentLen) + 2, 40) };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Form Order');
+  const safeOutletName = (outlet?.name || 'outlet').replace(/[^a-z0-9]+/gi, '_');
+  XLSX.writeFile(wb, `Form-Order-${safeOutletName}.xlsx`);
+  showToast(`Form order untuk "${outlet?.name || ''}" berhasil dibuat!`);
 }
 
 // ===== SURAT TANDA TERIMA (STTP) =====
