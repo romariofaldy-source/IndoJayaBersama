@@ -429,7 +429,32 @@
   <div class="content">
     <!-- DASHBOARD PAGE -->
     <div id="dashboard" class="page active">
-      <div class="stats-grid" id="dashboardStats"></div>
+      <div class="table-card" style="margin-bottom: 20px;">
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div class="form-grid" style="align-items:flex-end; gap:14px;">
+            <div class="form-group">
+              <label>🔍 Cari Outlet</label>
+              <select id="dashboard-outlet" onchange="renderDashboard()">
+                <option value="">-- Semua Outlet --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Dari Tanggal</label>
+              <input type="date" id="dashboard-date-from" onchange="renderDashboard()">
+            </div>
+            <div class="form-group">
+              <label>Sampai Tanggal</label>
+              <input type="date" id="dashboard-date-to" onchange="renderDashboard()">
+            </div>
+            <div class="form-group" style="align-self:flex-end">
+              <button class="btn btn-outline" onclick="resetDashboardFilter()">↺ Reset Filter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="dashboardStatsRow1"></div>
+      <div class="stats-grid" id="dashboardStatsRow2"></div>
       
       <div class="table-card">
         <div class="table-header">
@@ -4664,76 +4689,133 @@ function resetInvModal() {
 
 // ===== DASHBOARD =====
 
+function populateDashboardOutletSelect() {
+  const data = loadData();
+  const sel = document.getElementById('dashboard-outlet');
+  if (!sel) return;
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">-- Semua Outlet --</option>' +
+    data.customers.filter(c => c.type === 'outlet').map(c =>
+      `<option value="${c.id}">${c.name}</option>`
+    ).join('');
+  sel.value = currentVal;
+}
+
+function resetDashboardFilter() {
+  document.getElementById('dashboard-outlet').value = '';
+  document.getElementById('dashboard-date-from').value = '';
+  document.getElementById('dashboard-date-to').value = '';
+  renderDashboard();
+}
+
 function renderDashboard() {
   const data = loadData();
-  const stats = document.getElementById('dashboardStats');
-  
+  populateDashboardOutletSelect();
+
+  const outletId = document.getElementById('dashboard-outlet')?.value || '';
+  const dateFrom = document.getElementById('dashboard-date-from')?.value || '';
+  const dateTo = document.getElementById('dashboard-date-to')?.value || '';
+  const isFiltered = !!(outletId || dateFrom || dateTo);
+
+  // Invoice & PO difilter sesuai outlet/periode yang dipilih. Stock/katalog produk
+  // tetap global (gak ada tanggal/outlet-nya, itu snapshot kondisi saat ini).
+  const filteredInvs = data.invs.filter(inv => {
+    const matchOutlet = !outletId || String(inv.customer) === String(outletId);
+    const matchDate = (!dateFrom || inv.date >= dateFrom) && (!dateTo || inv.date <= dateTo);
+    return matchOutlet && matchDate;
+  });
+  const filteredPOs = data.pos.filter(po => {
+    const matchOutlet = !outletId || String(po.supplier) === String(outletId);
+    const matchDate = (!dateFrom || po.date >= dateFrom) && (!dateTo || po.date <= dateTo);
+    return matchOutlet && matchDate;
+  });
+
   const totalProducts = data.products.length;
-  const totalCustomers = data.customers.length;
-  const totalPOs = data.pos.length;
-  const totalInvoice = data.invs.reduce((sum, inv) => sum + inv.items.reduce((s, item) => s + (item.qty * item.price), 0), 0);
-  
-  // Total Modal: nilai stock saat ini dihitung dari harga modal (HPP) tiap produk
-  const totalModalStock = data.products.reduce((sum, p) => sum + (p.price || 0) * (p.stock || 0), 0);
-  
-  // Estimasi Profit: dari semua invoice, selisih harga jual (di invoice) vs harga modal produk
-  const totalProfit = data.invs.reduce((sum, inv) => {
+  const totalPOs = filteredPOs.length;
+
+  // 1. OMSET — total nilai semua invoice (sesuai filter)
+  const omset = filteredInvs.reduce((sum, inv) => sum + inv.items.reduce((s, item) => s + (item.qty * item.price), 0) - (inv.discount || 0), 0);
+
+  // 2. Total sudah dibayar/lunas
+  const totalLunas = filteredInvs.filter(inv => inv.status === 'Lunas')
+    .reduce((sum, inv) => sum + inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0), 0);
+
+  // 3. Total piutang belum lunas
+  const totalPiutang = filteredInvs.filter(inv => inv.status !== 'Lunas')
+    .reduce((sum, inv) => sum + inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0), 0);
+
+  // 4. Estimasi profit: selisih harga jual (di invoice) vs harga modal produk
+  const totalProfit = filteredInvs.reduce((sum, inv) => {
     return sum + inv.items.reduce((s, item) => {
       const product = data.products.find(p => p.name === item.name);
       const modal = product ? (product.price || 0) : 0;
       return s + (item.price - modal) * item.qty;
     }, 0);
   }, 0);
-  
-  // Hitung invoice overdue & piutang belum lunas
-  const todayStr = today();
-  const overdueInvs = data.invs.filter(inv => inv.status !== 'Lunas' && inv.due && inv.due < todayStr);
-  const totalPiutang = data.invs
-    .filter(inv => inv.status !== 'Lunas')
-    .reduce((sum, inv) => sum + inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0), 0);
 
-  stats.innerHTML = `
-    <div class="stat-card purple">
-      <div class="stat-icon purple">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-      </div>
-      <div class="stat-value">${totalProducts}</div>
-      <div class="stat-label">Total Produk</div>
-    </div>
-    <div class="stat-card coral">
-      <div class="stat-icon coral">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      </div>
-      <div class="stat-value">${totalCustomers}</div>
-      <div class="stat-label">Supplier/Outlet</div>
-    </div>
-    <div class="stat-card blue">
-      <div class="stat-icon blue">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
-      </div>
-      <div class="stat-value">${totalPOs}</div>
-      <div class="stat-label">PO Dibuat</div>
-    </div>
+  // 5. Total modal stok (global, gak dipengaruhi filter outlet/periode)
+  const totalModalStock = data.products.reduce((sum, p) => sum + (p.price || 0) * (p.stock || 0), 0);
+
+  // 8. Invoice jatuh tempo (sesuai filter)
+  const todayStr = today();
+  const overdueInvs = filteredInvs.filter(inv => inv.status !== 'Lunas' && inv.due && inv.due < todayStr);
+
+  const row1 = document.getElementById('dashboardStatsRow1');
+  const row2 = document.getElementById('dashboardStatsRow2');
+  if (!row1 || !row2) return;
+
+  row1.innerHTML = `
     <div class="stat-card green">
       <div class="stat-icon green">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1Z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>
       </div>
-      <div class="stat-value">${rupiah(totalInvoice)}</div>
-      <div class="stat-label">Total Invoice</div>
+      <div class="stat-value">${rupiah(omset)}</div>
+      <div class="stat-label">Omset${isFiltered ? ' (sesuai filter)' : ''}</div>
     </div>
-    <div class="stat-card amber">
-      <div class="stat-icon amber">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+    <div class="stat-card" style="background:var(--green-light, #E8F5E9)">
+      <div class="stat-icon green">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       </div>
-      <div class="stat-value">${rupiah(totalModalStock)}</div>
-      <div class="stat-label">Total Modal Stock</div>
+      <div class="stat-value">${rupiah(totalLunas)}</div>
+      <div class="stat-label">Sudah Dibayar / Lunas</div>
+    </div>
+    <div class="stat-card" style="background:var(--amber-light)">
+      <div class="stat-icon amber">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1Z"/></svg>
+      </div>
+      <div class="stat-value" style="font-size:18px">${rupiah(totalPiutang)}</div>
+      <div class="stat-label">Piutang Belum Lunas</div>
     </div>
     <div class="stat-card green">
       <div class="stat-icon green">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
       </div>
       <div class="stat-value" style="color:${totalProfit >= 0 ? 'inherit' : '#d44'};">${rupiah(totalProfit)}</div>
-      <div class="stat-label">Estimasi Profit (Invoice)</div>
+      <div class="stat-label">Estimasi Profit</div>
+    </div>
+  `;
+
+  row2.innerHTML = `
+    <div class="stat-card amber">
+      <div class="stat-icon amber">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      </div>
+      <div class="stat-value">${rupiah(totalModalStock)}</div>
+      <div class="stat-label">Total Modal Stok</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-icon purple">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      </div>
+      <div class="stat-value">${totalProducts}</div>
+      <div class="stat-label">Total Produk yang Dijual</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-icon blue">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+      </div>
+      <div class="stat-value">${totalPOs}</div>
+      <div class="stat-label">PO Dibuat${isFiltered ? ' (sesuai filter)' : ''}</div>
     </div>
     <div class="stat-card" style="background:var(--coral-light);cursor:pointer" onclick="switchPageDirect('inv')">
       <div class="stat-icon coral">
@@ -4742,13 +4824,6 @@ function renderDashboard() {
       <div class="stat-value" style="color:${overdueInvs.length > 0 ? '#d44' : 'inherit'}">${overdueInvs.length}</div>
       <div class="stat-label">Invoice Jatuh Tempo</div>
       <div style="font-size:11px;color:#a00;margin-top:4px">${rupiah(overdueInvs.reduce((s,i)=>s+i.items.reduce((x,t)=>x+t.qty*t.price,0)-(i.discount||0),0))}</div>
-    </div>
-    <div class="stat-card" style="background:var(--amber-light)">
-      <div class="stat-icon amber">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1Z"/></svg>
-      </div>
-      <div class="stat-value" style="font-size:18px">${rupiah(totalPiutang)}</div>
-      <div class="stat-label">Total Piutang Belum Lunas</div>
     </div>
   `;
   
