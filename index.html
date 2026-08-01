@@ -1181,15 +1181,16 @@
         <input type="text" id="inv-no" placeholder="Auto generate" readonly>
       </div>
       <div class="form-group full">
-        <label>Referensi Surat Jalan (Opsional)</label>
+        <label>1️⃣ Referensi Surat Jalan (pilih salah satu SJ dulu)</label>
         <select id="inv-so-ref" onchange="loadSOIntoInv()"></select>
       </div>
       <div class="form-group full">
-        <label>Gabung SJ Susulan (kalau kirimannya lebih dari 1 SJ)</label>
+        <label>2️⃣ Gabung SJ Susulan (otomatis kefilter yang No PO-nya sama)</label>
         <div style="display:flex; gap:8px;">
           <select id="inv-so-ref-extra" style="flex:1"></select>
           <button type="button" class="btn btn-outline" onclick="addSusulanSOToInv()">+ Tambah</button>
         </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Pilih dulu SJ di atas (No. 1) — dropdown ini otomatis nampilin SJ lain dengan No PO yang sama, misal SJ susulan.</div>
         <div id="inv-so-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div>
       </div>
       <div class="form-group">
@@ -3998,23 +3999,34 @@ function populateSORefSelect(selectedId) {
     }).join('');
 }
 
-// Isi dropdown SJ susulan: cuma SJ dari customer yg sama dengan yg lagi dipilih,
-// dan yang belum digabung sebelumnya.
+// Isi dropdown SJ susulan: begitu ada SJ utama yang udah dipilih, filter ke SJ
+// lain yang PO-nya SAMA PERSIS (ini yang biasanya jadi acuan buat gabungin SJ
+// susulan). Kalau belum ada SJ utama sama sekali, fallback filter by customer aja.
 function populateExtraSORefSelect() {
   const data = loadData();
   const select = document.getElementById('inv-so-ref-extra');
   if (!select) return;
+  const primarySO = invLinkedSOIds.length ? data.sos.find(s => s.id == invLinkedSOIds[0]) : null;
   const customerId = document.getElementById('inv-customer').value;
-  const candidates = data.sos.filter(so =>
-    (!customerId || String(so.customer) === String(customerId)) &&
-    !invLinkedSOIds.includes(so.id)
-  );
+
+  let candidates;
+  if (primarySO && primarySO.poId) {
+    candidates = data.sos.filter(so => so.poId == primarySO.poId && !invLinkedSOIds.includes(so.id));
+  } else {
+    candidates = data.sos.filter(so =>
+      (!customerId || String(so.customer) === String(customerId)) &&
+      !invLinkedSOIds.includes(so.id)
+    );
+  }
+
   if (candidates.length === 0) {
-    select.innerHTML = `<option value="">-- Tidak ada SJ lain --</option>`;
+    select.innerHTML = primarySO && primarySO.poId
+      ? `<option value="">-- Tidak ada SJ lain dengan No PO yang sama --</option>`
+      : `<option value="">-- Tidak ada SJ lain --</option>`;
     return;
   }
-  select.innerHTML = `<option value="">-- Pilih SJ susulan --</option>` +
-    candidates.map(so => `<option value="${so.id}">${so.no}</option>`).join('');
+  select.innerHTML = `<option value="">-- Pilih SJ susulan (No PO: ${primarySO?.poNo || '-'}) --</option>` +
+    candidates.map(so => `<option value="${so.id}">${so.no}${so.poNo ? ' (PO: ' + so.poNo + ')' : ''}</option>`).join('');
 }
 
 function renderInvSOChips() {
@@ -4025,7 +4037,7 @@ function renderInvSOChips() {
     const so = data.sos.find(s => s.id == id);
     if (!so) return '';
     return `<span class="badge badge-blue" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;">
-      ${so.no}
+      ${so.no}${so.poNo ? ' · PO ' + so.poNo : ''}
       <span style="cursor:pointer;font-weight:700" onclick="removeSusulanSOFromInv(${id})" title="Lepas referensi SJ ini (item yang sudah ditambah tidak ikut terhapus)">✕</span>
     </span>`;
   }).join('');
