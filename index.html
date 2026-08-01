@@ -3999,9 +3999,16 @@ function populateSORefSelect(selectedId) {
     }).join('');
 }
 
+// Ambil "nomor PO dasar" dengan buang embel-embel di belakang kayak "(susulan)",
+// "(lanjutan)", dll — jadi "PO.2026.07.00052" dan "PO.2026.07.00052 (susulan)"
+// dianggap satu grup PO yang sama walau itu 2 record PO yang beda di sistem.
+function basePoNo(no) {
+  return (no || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toUpperCase();
+}
+
 // Isi dropdown SJ susulan: begitu ada SJ utama yang udah dipilih, filter ke SJ
-// lain yang PO-nya SAMA PERSIS (ini yang biasanya jadi acuan buat gabungin SJ
-// susulan). Kalau belum ada SJ utama sama sekali, fallback filter by customer aja.
+// lain yang NOMOR PO DASAR-nya SAMA (mengabaikan embel-embel kayak "(susulan)").
+// Kalau belum ada SJ utama sama sekali, fallback filter by customer aja.
 function populateExtraSORefSelect() {
   const data = loadData();
   const select = document.getElementById('inv-so-ref-extra');
@@ -4010,8 +4017,9 @@ function populateExtraSORefSelect() {
   const customerId = document.getElementById('inv-customer').value;
 
   let candidates;
-  if (primarySO && primarySO.poId) {
-    candidates = data.sos.filter(so => so.poId == primarySO.poId && !invLinkedSOIds.includes(so.id));
+  if (primarySO && primarySO.poNo) {
+    const baseNo = basePoNo(primarySO.poNo);
+    candidates = data.sos.filter(so => so.poNo && basePoNo(so.poNo) === baseNo && !invLinkedSOIds.includes(so.id));
   } else {
     candidates = data.sos.filter(so =>
       (!customerId || String(so.customer) === String(customerId)) &&
@@ -4020,7 +4028,7 @@ function populateExtraSORefSelect() {
   }
 
   if (candidates.length === 0) {
-    select.innerHTML = primarySO && primarySO.poId
+    select.innerHTML = primarySO && primarySO.poNo
       ? `<option value="">-- Tidak ada SJ lain dengan No PO yang sama --</option>`
       : `<option value="">-- Tidak ada SJ lain --</option>`;
     return;
