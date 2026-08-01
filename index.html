@@ -1184,9 +1184,17 @@
         <label>Referensi Surat Jalan (Opsional)</label>
         <select id="inv-so-ref" onchange="loadSOIntoInv()"></select>
       </div>
+      <div class="form-group full">
+        <label>Gabung SJ Susulan (kalau kirimannya lebih dari 1 SJ)</label>
+        <div style="display:flex; gap:8px;">
+          <select id="inv-so-ref-extra" style="flex:1"></select>
+          <button type="button" class="btn btn-outline" onclick="addSusulanSOToInv()">+ Tambah</button>
+        </div>
+        <div id="inv-so-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div>
+      </div>
       <div class="form-group">
         <label>Customer</label>
-        <select id="inv-customer" onchange="showSelectedAddress('inv-customer','inv-customer-address')"></select>
+        <select id="inv-customer" onchange="showSelectedAddress('inv-customer','inv-customer-address'); populateExtraSORefSelect();"></select>
       </div>
       <div class="form-group">
         <label>Tanggal</label>
@@ -1846,6 +1854,19 @@ function getCompanyProfile() {
     phone: data.company?.phone || '',
     logo: data.logo || ''
   };
+}
+
+// Invoice bisa punya lebih dari 1 SJ terkait (soIds), atau cuma 1 (soId lama).
+// Helper ini balikin semua record SJ yang terkait, urut sesuai soIds/soId.
+// Fallback ke match by soNo buat data invoice lama yang belum punya soId sama sekali.
+function getInvSORecords(inv, data) {
+  const ids = (inv.soIds && inv.soIds.length) ? inv.soIds : (inv.soId ? [inv.soId] : []);
+  if (ids.length) return ids.map(id => data.sos.find(s => s.id == id)).filter(Boolean);
+  if (inv.soNo) {
+    const found = data.sos.find(s => s.no === inv.soNo);
+    return found ? [found] : [];
+  }
+  return [];
 }
 
 function rupiah(num) {
@@ -2826,7 +2847,7 @@ function exportTableToExcel(type) {
     filename = 'Export-Invoice';
     data.invs.forEach(inv => {
       const customer = data.customers.find(c => c.id == inv.customer)?.name || 'Unknown';
-      const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+      const soRecord = getInvSORecords(inv, data)[0];
       const tglKirim = soRecord?.date || inv.deliveryDate || '-';
       inv.items.forEach(item => rows.push({
         'No Invoice': inv.no, 'Ref SJ': inv.soNo || '-', 'Customer': customer, 'Tanggal': inv.date, 'Tanggal Kirim': tglKirim, 'Jatuh Tempo': inv.due, 'Status': inv.status,
@@ -3962,6 +3983,10 @@ function selectInvItem(element, name, price, uom) {
   calculateTotal();
 }
 
+// Invoice bisa gabung lebih dari 1 Surat Jalan (misalnya SJ susulan buat barang
+// yang kemarin belum kekirim). invLinkedSOIds nyimpen semua SJ yang udah digabung.
+let invLinkedSOIds = [];
+
 function populateSORefSelect(selectedId) {
   const data = loadData();
   const select = document.getElementById('inv-so-ref');
@@ -3971,6 +3996,69 @@ function populateSORefSelect(selectedId) {
       const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
       return `<option value="${so.id}" ${so.id == selectedId ? 'selected' : ''}>${so.no} - ${customer}${so.status === 'Selesai' ? ' ✓' : ''}</option>`;
     }).join('');
+}
+
+// Isi dropdown SJ susulan: cuma SJ dari customer yg sama dengan yg lagi dipilih,
+// dan yang belum digabung sebelumnya.
+function populateExtraSORefSelect() {
+  const data = loadData();
+  const select = document.getElementById('inv-so-ref-extra');
+  if (!select) return;
+  const customerId = document.getElementById('inv-customer').value;
+  const candidates = data.sos.filter(so =>
+    (!customerId || String(so.customer) === String(customerId)) &&
+    !invLinkedSOIds.includes(so.id)
+  );
+  if (candidates.length === 0) {
+    select.innerHTML = `<option value="">-- Tidak ada SJ lain --</option>`;
+    return;
+  }
+  select.innerHTML = `<option value="">-- Pilih SJ susulan --</option>` +
+    candidates.map(so => `<option value="${so.id}">${so.no}</option>`).join('');
+}
+
+function renderInvSOChips() {
+  const data = loadData();
+  const box = document.getElementById('inv-so-chips');
+  if (!box) return;
+  box.innerHTML = invLinkedSOIds.map(id => {
+    const so = data.sos.find(s => s.id == id);
+    if (!so) return '';
+    return `<span class="badge badge-blue" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;">
+      ${so.no}
+      <span style="cursor:pointer;font-weight:700" onclick="removeSusulanSOFromInv(${id})" title="Lepas referensi SJ ini (item yang sudah ditambah tidak ikut terhapus)">✕</span>
+    </span>`;
+  }).join('');
+  populateExtraSORefSelect();
+}
+
+function addSusulanSOToInv() {
+  const data = loadData();
+  const soId = document.getElementById('inv-so-ref-extra').value;
+  if (!soId) return;
+  const so = data.sos.find(s => s.id == soId);
+  if (!so) return;
+  if (invLinkedSOIds.includes(so.id)) return;
+
+  // Kalau belum ada customer/item sama sekali, jadikan SJ ini sebagai dasar
+  if (invLinkedSOIds.length === 0) {
+    populateCustomerSelect('inv-customer', so.customer, 'outlet');
+    showSelectedAddress('inv-customer', 'inv-customer-address');
+  }
+  // Tambahkan item-item SJ ini ke tabel item invoice (gabung, bukan replace)
+  so.items.forEach(item => addInvItem(item.name, item.qty, item.price, item.uom));
+  invLinkedSOIds.push(so.id);
+  calculateTotal();
+  renderInvSOChips();
+  showToast(`Item dari ${so.no} berhasil digabung ke invoice ini`);
+}
+
+// Lepas referensi SJ dari invoice ini — item yang udah kebaca ke tabel TIDAK
+// otomatis dihapus (biar aman kalau qty-nya udah sempat diedit manual), user
+// bisa hapus barisnya manual kalau memang gak jadi dipakai.
+function removeSusulanSOFromInv(soId) {
+  invLinkedSOIds = invLinkedSOIds.filter(id => id != soId);
+  renderInvSOChips();
 }
 
 function loadSOIntoInv() {
@@ -3985,6 +4073,10 @@ function loadSOIntoInv() {
   document.getElementById('inv-items').innerHTML = '';
   so.items.forEach(item => addInvItem(item.name, item.qty, item.price, item.uom));
   calculateTotal();
+
+  // Pilih dari dropdown utama = reset gabungan, jadiin SJ ini satu-satunya referensi
+  invLinkedSOIds = [so.id];
+  renderInvSOChips();
 }
 
 function openInvModal() {
@@ -4012,6 +4104,9 @@ function editInv(id) {
   document.getElementById('inv-items').innerHTML = '';
   inv.items.forEach(item => addInvItem(item.name, item.qty, item.price, item.uom));
   calculateTotal();
+  // SJ yang udah pernah digabung sebelumnya (kalau invoice lama cuma punya 1 soId, tetap kebaca)
+  invLinkedSOIds = (inv.soIds && inv.soIds.length) ? inv.soIds.slice() : (inv.soId ? [inv.soId] : []);
+  renderInvSOChips();
   document.getElementById('invModal').classList.add('open');
 }
 
@@ -4044,9 +4139,12 @@ function saveInv() {
     return;
   }
 
-  const soRefId = document.getElementById('inv-so-ref').value || null;
-  const soRef = soRefId ? data.sos.find(s => s.id == soRefId) : null;
-  
+  // Semua SJ yang digabung ke invoice ini (bisa lebih dari 1, misal SJ susulan)
+  const soRefIds = invLinkedSOIds.slice();
+  const soRefs = soRefIds.map(id => data.sos.find(s => s.id == id)).filter(Boolean);
+  const primarySoId = soRefIds[0] || null;
+  const soNoCombined = soRefs.map(s => s.no).join(', ') || null;
+
   if (editingInvId) {
     const inv = data.invs.find(i => i.id === editingInvId);
     inv.no = document.getElementById('inv-no').value || inv.no;
@@ -4057,8 +4155,9 @@ function saveInv() {
     inv.notes = document.getElementById('inv-notes').value;
     inv.discount = parseFloat(document.getElementById('inv-discount').value) || 0;
     inv.status = document.getElementById('inv-status').value;
-    inv.soId = soRefId;
-    inv.soNo = soRef ? soRef.no : (inv.soNo || null);
+    inv.soId = primarySoId;
+    inv.soIds = soRefIds;
+    inv.soNo = soNoCombined || (inv.soNo || null);
     showToast('Invoice berhasil direvisi!');
   } else {
     const inv = {
@@ -4071,21 +4170,22 @@ function saveInv() {
       notes: document.getElementById('inv-notes').value,
       discount: parseFloat(document.getElementById('inv-discount').value) || 0,
       status: document.getElementById('inv-status').value || 'Draft',
-      soId: soRefId,
-      soNo: soRef ? soRef.no : null
+      soId: primarySoId,
+      soIds: soRefIds,
+      soNo: soNoCombined
     };
     data.invs.push(inv);
     showToast('Invoice berhasil disimpan!');
   }
 
-  // Tandai Surat Jalan terkait sebagai Selesai karena sudah diinvoice
-  if (soRef) {
+  // Tandai semua Surat Jalan yang digabung ke invoice ini sebagai Selesai
+  soRefs.forEach(soRef => {
     soRef.status = 'Selesai';
     if (soRef.poId) {
       const poRef = data.pos.find(p => p.id == soRef.poId);
       if (poRef) poRef.status = 'Selesai';
     }
-  }
+  });
   
   saveData(data);
   closeModal('invModal');
@@ -4139,7 +4239,7 @@ function renderInvs() {
       : '<span style="color:var(--text-muted);font-size:11px">-</span>';
 
     // Tanggal Kirim diambil dari Surat Jalan yang direferensikan invoice ini
-    const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+    const soRecord = getInvSORecords(inv, data)[0];
     const tglKirim = soRecord?.date || inv.deliveryDate || null;
     const tglKirimDisplay = tglKirim
       ? `<span style="font-size:11px">${fmtDate(tglKirim)}</span>`
@@ -4526,6 +4626,7 @@ function deleteInv(id) {
 
 function resetInvModal() {
   editingInvId = null;
+  invLinkedSOIds = [];
   document.getElementById('inv-no').value = generateNo('INV');
   populateSORefSelect('');
   document.getElementById('inv-customer').value = '';
@@ -4538,6 +4639,7 @@ function resetInvModal() {
   document.getElementById('inv-total').textContent = '0';
   const addrBox = document.getElementById('inv-customer-address');
   if (addrBox) { addrBox.innerHTML = ''; addrBox.style.display = 'none'; }
+  renderInvSOChips();
 }
 
 // ===== DASHBOARD =====
@@ -6030,7 +6132,7 @@ function renderSttpInvCheckboxes(allInvs, selectedNos) {
   box.innerHTML = allInvs.map(inv => {
     const total = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
     const checked = selectedNos.includes(inv.no) ? 'checked' : '';
-    const soRecord = inv.soNo ? data.sos.find(s => s.no === inv.soNo) : null;
+    const soRecord = getInvSORecords(inv, data)[0];
     const tglKirim = soRecord?.date || inv.deliveryDate || inv.date; // fallback ke tgl invoice kalau SJ tidak ditemukan
     const lunasBadge = inv.status === 'Lunas'
       ? ' <span style="background:#E8F5E9;color:#2E7D32;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px">✅ LUNAS</span>'
@@ -6297,10 +6399,9 @@ function generateSttpPreview(sttp) {
     const invRows = sttp.invNos.map(invNo => {
       const inv = data.invs.find(i => i.no === invNo);
       const invTotal = inv ? inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0) : 0;
-      const so = inv && inv.soRefId ? data.sos?.find(s => s.id === inv.soRefId) : null;
-      const soByNo = (!so && inv?.soNo) ? data.sos?.find(s => s.no === inv.soNo) : null;
-      const poNo = so?.poNo || soByNo?.poNo || inv?.poNo || '-'; // No PO yang direferensikan Surat Jalan
-      const tglKirim = so?.date || soByNo?.date || inv?.deliveryDate || inv?.date; // fallback kalau SJ tidak ditemukan
+      const so = inv ? getInvSORecords(inv, data)[0] : null;
+      const poNo = so?.poNo || inv?.poNo || '-'; // No PO yang direferensikan Surat Jalan
+      const tglKirim = so?.date || inv?.deliveryDate || inv?.date; // fallback kalau SJ tidak ditemukan
       return { invNo, invTotal, poNo, tglKirim };
     });
     // Urutkan dari tanggal kirim paling awal (yg tidak ada tanggal diletakkan di akhir)
