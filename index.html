@@ -196,14 +196,18 @@
   .drp-nav { cursor: pointer; font-size: 19px; font-weight: 700; padding: 2px 8px; border-radius: 8px; user-select: none; color: var(--purple); flex-shrink: 0; }
   .drp-nav:hover { background: color-mix(in srgb, var(--purple) 10%, transparent); }
   .drp-calendar { border-collapse: separate; border-spacing: 1px 2px; width: auto; }
-  .drp-calendar th { font-size: 10px; font-weight: 700; color: var(--text-muted); padding: 2px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+  .drp-calendar th { font-size: 10px; font-weight: 700; color: var(--text-muted); padding: 2px 0; text-transform: uppercase; letter-spacing: 0.3px; text-align: center; background: transparent; border-bottom: none; }
   .drp-calendar th.weekend { color: var(--coral); }
   /* Tabel kalender ini ikut ke-hit rule global "tr:hover td" yang dipakai tabel data lain di
      app (nge-tint background SATU BARIS PENUH tiap hover) -> itu penyebab "animasi ngaco" pas
      geser kursor. Netralin dulu row-hover globalnya khusus di sini, baru declare ulang warna
      hover per-sel & range dengan spesifisitas lebih tinggi (.drp-popover ...) biar tetap presisi. */
   .drp-calendar tr:hover td { background: transparent; }
-  .drp-day { width: 28px; height: 28px; text-align: center; font-size: 12px; cursor: pointer; color: var(--text); border-radius: 50%; }
+  /* PENTING: rule global "td { padding:13px 16px; border-bottom:1px solid ... }" dipakai tabel
+     data lain di app, dan itu ikut ke-warisin ke sel kalender ini juga kalau ga di-reset manual
+     -> itu sebabnya kalendernya masih "kegedean" walau width/height udah diset kecil (paddingnya
+     nambahin ~32px ekstra ke tiap sel di luar yang keliatan di CSS). Reset total di sini. */
+  .drp-day { box-sizing: border-box; padding: 0; border: none; width: 28px; height: 28px; text-align: center; font-size: 12px; cursor: pointer; color: var(--text); border-radius: 50%; }
   .drp-day.other-month { color: var(--text-muted); opacity: 0.45; }
   .drp-day.weekend { color: var(--coral); }
   .drp-day.other-month.weekend { color: var(--text-muted); opacity: 0.45; }
@@ -4861,19 +4865,40 @@ function openDateRangePicker(ev, target) {
   const seed = drpStart ? new Date(drpStart + 'T00:00:00') : new Date();
   drpBaseMonth = new Date(seed.getFullYear(), seed.getMonth(), 1);
 
-  drpBuildCalendars();
+  // Popover musti udah "open" (visible) dulu sebelum di-build/diukur, soalnya elemen yang
+  // display:none selalu offsetWidth 0 — makanya urutannya: tampilin -> build -> ukur -> posisikan.
   document.getElementById('drpOverlay').classList.add('open');
   popover.classList.add('open');
   popover.dataset.openFor = drpTarget;
   document.getElementById(cfg.trigger).classList.add('active');
+  drpBuildCalendars();
+  drpSizePopoverToCalendars();
   drpPositionPopover();
+}
+
+// Popover pakai width:max-content, dan baris footer (teks hint + tombol Batal/Terapkan) itu
+// aslinya lebih lebar dari 2 kalender kecilnya -> itu yang bikin panel jadi lebar padahal
+// kalendernya sendiri udah kecil. Di sini lebar popover dipaksa ngikutin lebar asli 2 tabel
+// kalender aja, baris footer tinggal wrap ngikutin lebar itu.
+function drpSizePopoverToCalendars() {
+  const popover = document.getElementById('drpPopover');
+  const left = document.getElementById('drpCalendarLeft');
+  const right = document.getElementById('drpCalendarRight');
+  const cs = getComputedStyle(document.querySelector('.drp-tables'));
+  const gap = parseFloat(cs.columnGap || cs.gap) || 0;
+  const popCs = getComputedStyle(popover);
+  const padLeft = parseFloat(popCs.paddingLeft) || 0;
+  const padRight = parseFloat(popCs.paddingRight) || 0;
+  const borderLeft = parseFloat(popCs.borderLeftWidth) || 0;
+  const borderRight = parseFloat(popCs.borderRightWidth) || 0;
+  // +2px buffer jaga-jaga dari pembulatan subpixel, biar 2 kalender ga kepepet & wrap ke bawah.
+  popover.style.width = (left.offsetWidth + right.offsetWidth + gap + padLeft + padRight + borderLeft + borderRight + 2) + 'px';
 }
 
 function drpPositionPopover() {
   const trigger = document.getElementById(DRP_TARGETS[drpTarget].trigger);
   const popover = document.getElementById('drpPopover');
   const rect = trigger.getBoundingClientRect();
-  popover.style.minWidth = rect.width + 'px';
   const pw = popover.offsetWidth, ph = popover.offsetHeight;
   let left = rect.left;
   let top = rect.bottom + 8;
@@ -4892,6 +4917,7 @@ function closeDateRangePicker() {
 function drpChangeMonth(delta) {
   drpBaseMonth = new Date(drpBaseMonth.getFullYear(), drpBaseMonth.getMonth() + delta, 1);
   drpBuildCalendars();
+  drpSizePopoverToCalendars();
   drpPositionPopover();
 }
 
@@ -5052,6 +5078,9 @@ function resetComparePeriod(ev) {
 window.addEventListener('resize', () => {
   if (document.getElementById('drpPopover').classList.contains('open')) drpPositionPopover();
 });
+window.addEventListener('scroll', () => {
+  if (document.getElementById('drpPopover').classList.contains('open')) drpPositionPopover();
+}, true); // capture:true biar ke-detect juga kalau yang discroll adalah container di dalam halaman, bukan window
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.getElementById('drpPopover').classList.contains('open')) closeDateRangePicker();
 });
@@ -5131,7 +5160,7 @@ function renderDashboard() {
       <div class="stat-icon amber">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1Z"/></svg>
       </div>
-      <div class="stat-value" style="font-size:18px">${rupiah(totalPiutang)}</div>
+      <div class="stat-value">${rupiah(totalPiutang)}</div>
       <div class="stat-label">Piutang Belum Lunas</div>
     </div>
     <div class="stat-card green">
