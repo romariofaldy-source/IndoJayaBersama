@@ -455,6 +455,27 @@
 
       <div class="stats-grid" id="dashboardStatsRow1"></div>
       <div class="stats-grid" id="dashboardStatsRow2"></div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">🍩 Omset per Outlet</div>
+          </div>
+          <div style="padding: 20px;">
+            <div style="max-width:260px; margin:0 auto;"><canvas id="outletOmsetChart"></canvas></div>
+            <div id="outletOmsetLegend" style="margin-top:16px;"></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">🍩 Jumlah Invoice per Outlet</div>
+          </div>
+          <div style="padding: 20px;">
+            <div style="max-width:260px; margin:0 auto;"><canvas id="outletInvCountChart"></canvas></div>
+            <div id="outletInvCountLegend" style="margin-top:16px;"></div>
+          </div>
+        </div>
+      </div>
       
       <div class="table-card">
         <div class="table-header">
@@ -4830,6 +4851,133 @@ function renderDashboard() {
   renderPopularItems();
   renderRecentPOs();
   renderDashboardChart();
+  renderOutletCharts();
+}
+
+let outletOmsetChartInstance = null;
+let outletInvCountChartInstance = null;
+
+// Palet warna modern buat donut chart per-outlet
+const OUTLET_CHART_COLORS = ['#6C5CE7', '#00B894', '#FD9644', '#0984E3', '#E84393', '#00CEC9', '#F4A261', '#A29BFE', '#2ECC71', '#EE5253'];
+
+function renderOutletCharts() {
+  const data = loadData();
+  const canvasA = document.getElementById('outletOmsetChart');
+  const canvasB = document.getElementById('outletInvCountChart');
+  if (!canvasA || !canvasB || typeof Chart === 'undefined') return;
+
+  // Breakdown ini ikut filter periode (tanggal) di atas, tapi SENGAJA gak ikut
+  // filter outlet-nya sendiri — soalnya isinya emang breakdown per-outlet.
+  const dateFrom = document.getElementById('dashboard-date-from')?.value || '';
+  const dateTo = document.getElementById('dashboard-date-to')?.value || '';
+  const invsInPeriod = data.invs.filter(inv =>
+    (!dateFrom || inv.date >= dateFrom) && (!dateTo || inv.date <= dateTo)
+  );
+
+  const omsetByOutlet = {};
+  const countByOutlet = {};
+  invsInPeriod.forEach(inv => {
+    const outlet = data.customers.find(c => c.id == inv.customer);
+    const name = outlet?.name || 'Tanpa Outlet';
+    const value = inv.items.reduce((s, i) => s + i.qty * i.price, 0) - (inv.discount || 0);
+    omsetByOutlet[name] = (omsetByOutlet[name] || 0) + value;
+    countByOutlet[name] = (countByOutlet[name] || 0) + 1;
+  });
+
+  // Gabungin outlet yang porsinya kecil jadi "Lainnya" biar chart gak kepenuhan (maks 6 slice + Lainnya)
+  function groupTop(obj, maxSlices = 6) {
+    const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+    if (entries.length <= maxSlices) return entries;
+    const top = entries.slice(0, maxSlices);
+    const restTotal = entries.slice(maxSlices).reduce((s, [, v]) => s + v, 0);
+    if (restTotal > 0) top.push(['Lainnya', restTotal]);
+    return top;
+  }
+
+  const omsetEntries = groupTop(omsetByOutlet);
+  const countEntries = groupTop(countByOutlet);
+
+  const isDark = document.body.classList.contains('dark-mode');
+  const textMain = isDark ? '#E5E5F0' : '#2D2D3D';
+  const textMuted = isDark ? '#9A9AB0' : '#6B6B7D';
+
+  function buildDoughnut(canvas, existingInstance, entries, valueFormatter) {
+    if (existingInstance) existingInstance.destroy();
+    const total = entries.reduce((s, [, v]) => s + v, 0);
+    const colors = entries.map((_, i) => OUTLET_CHART_COLORS[i % OUTLET_CHART_COLORS.length]);
+    const chart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: entries.map(([name]) => name),
+        datasets: [{
+          data: entries.map(([, v]) => v),
+          backgroundColor: colors,
+          borderColor: isDark ? '#1E1E2E' : '#fff',
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(2) : '0';
+                return ` ${ctx.label}: ${valueFormatter(ctx.parsed)} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+    return { chart, total, colors };
+  }
+
+  const omsetResult = buildDoughnut(canvasA, outletOmsetChartInstance, omsetEntries, v => rupiah(v));
+  outletOmsetChartInstance = omsetResult.chart;
+  const countResult = buildDoughnut(canvasB, outletInvCountChartInstance, countEntries, v => `${v} inv`);
+  outletInvCountChartInstance = countResult.chart;
+
+  function buildLegendTable(entries, colors, total, valueFormatter) {
+    if (entries.length === 0) {
+      return `<div style="text-align:center;color:${textMuted};font-size:13px;padding:20px 0;">Belum ada data invoice pada periode ini</div>`;
+    }
+    const rows = entries.map(([name, val], i) => {
+      const pct = total > 0 ? (val / total * 100).toFixed(2) : '0.00';
+      return `
+        <tr>
+          <td style="padding:8px 6px;width:14px;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${colors[i]};"></span></td>
+          <td style="padding:8px 6px;font-weight:600;color:${textMain};font-size:13px;">${name}</td>
+          <td style="padding:8px 6px;text-align:right;color:${textMain};font-size:13px;">${valueFormatter(val)}</td>
+          <td style="padding:8px 6px;text-align:right;color:${textMuted};font-size:13px;">${pct.replace('.', ',')} %</td>
+        </tr>`;
+    }).join('');
+    return `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:2px solid ${isDark ? '#33334a' : '#eee'};">
+            <th></th>
+            <th style="text-align:left;padding:6px;font-size:12px;color:${textMuted};">Outlet</th>
+            <th style="text-align:right;padding:6px;font-size:12px;color:${textMuted};">Portion</th>
+            <th style="text-align:right;padding:6px;font-size:12px;color:${textMuted};">Percentage</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="border-top:2px solid ${isDark ? '#33334a' : '#eee'};">
+            <td></td>
+            <td style="padding:8px 6px;font-weight:700;color:${textMain};font-size:13px;">Total</td>
+            <td style="padding:8px 6px;text-align:right;font-weight:700;color:${textMain};font-size:13px;">${valueFormatter(total)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>`;
+  }
+
+  document.getElementById('outletOmsetLegend').innerHTML = buildLegendTable(omsetEntries, omsetResult.colors, omsetResult.total, v => new Intl.NumberFormat('id-ID').format(v));
+  document.getElementById('outletInvCountLegend').innerHTML = buildLegendTable(countEntries, countResult.colors, countResult.total, v => new Intl.NumberFormat('id-ID').format(v));
 }
 
 let dashboardChartInstance = null;
