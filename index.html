@@ -186,26 +186,31 @@
   .date-range-trigger.active { border-color: var(--purple); box-shadow: 0 0 0 4px color-mix(in srgb, var(--purple) 14%, transparent); }
   .drp-popover-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: transparent; }
   .drp-popover-overlay.open { display: block; }
-  .drp-popover { display: none; position: fixed; z-index: 301; background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-lg); padding: 22px 28px 18px; width: max-content; max-width: calc(100vw - 24px); }
+  .drp-popover { display: none; position: fixed; z-index: 301; background: var(--card-bg); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg); padding: 16px 20px 14px; width: max-content; max-width: calc(100vw - 24px); }
   .drp-popover.open { display: block; }
-  .drp-head { display: flex; align-items: center; gap: 24px; margin-bottom: 18px; }
-  .drp-head strong { font-size: 15px; font-weight: 700; }
-  .drp-tables { display: flex; gap: 48px; flex-wrap: wrap; justify-content: center; }
-  .drp-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-  .drp-hint { color: var(--purple); font-weight: 600; font-size: 13px; }
-  .drp-nav { cursor: pointer; font-size: 22px; font-weight: 700; padding: 3px 10px; border-radius: 8px; user-select: none; color: var(--purple); flex-shrink: 0; }
+  .drp-head { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .drp-head strong { font-size: 13.5px; font-weight: 700; }
+  .drp-tables { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .drp-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .drp-hint { color: var(--purple); font-weight: 600; font-size: 12.5px; }
+  .drp-nav { cursor: pointer; font-size: 19px; font-weight: 700; padding: 2px 8px; border-radius: 8px; user-select: none; color: var(--purple); flex-shrink: 0; }
   .drp-nav:hover { background: color-mix(in srgb, var(--purple) 10%, transparent); }
-  .drp-calendar { border-collapse: separate; border-spacing: 4px 6px; width: auto; }
-  .drp-calendar th { font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 2px 0; text-transform: uppercase; letter-spacing: 0.4px; }
+  .drp-calendar { border-collapse: separate; border-spacing: 1px 2px; width: auto; }
+  .drp-calendar th { font-size: 10px; font-weight: 700; color: var(--text-muted); padding: 2px 0; text-transform: uppercase; letter-spacing: 0.3px; }
   .drp-calendar th.weekend { color: var(--coral); }
-  .drp-day { width: 38px; height: 38px; text-align: center; font-size: 14px; cursor: pointer; color: var(--text); border-radius: 50%; }
-  .drp-day:hover { background: color-mix(in srgb, var(--purple) 12%, transparent); }
+  /* Tabel kalender ini ikut ke-hit rule global "tr:hover td" yang dipakai tabel data lain di
+     app (nge-tint background SATU BARIS PENUH tiap hover) -> itu penyebab "animasi ngaco" pas
+     geser kursor. Netralin dulu row-hover globalnya khusus di sini, baru declare ulang warna
+     hover per-sel & range dengan spesifisitas lebih tinggi (.drp-popover ...) biar tetap presisi. */
+  .drp-calendar tr:hover td { background: transparent; }
+  .drp-day { width: 28px; height: 28px; text-align: center; font-size: 12px; cursor: pointer; color: var(--text); border-radius: 50%; }
   .drp-day.other-month { color: var(--text-muted); opacity: 0.45; }
   .drp-day.weekend { color: var(--coral); }
   .drp-day.other-month.weekend { color: var(--text-muted); opacity: 0.45; }
   .drp-day.today { box-shadow: inset 0 0 0 1.5px var(--purple); font-weight: 700; color: var(--purple); }
-  .drp-day.in-range { background: color-mix(in srgb, var(--purple) 12%, transparent); border-radius: 50%; }
-  .drp-day.range-start, .drp-day.range-end { background: var(--purple); color: #fff; font-weight: 700; box-shadow: none; }
+  .drp-popover .drp-day:hover { background: color-mix(in srgb, var(--purple) 12%, transparent); }
+  .drp-popover .drp-day.in-range { background: color-mix(in srgb, var(--purple) 12%, transparent); border-radius: 50%; }
+  .drp-popover .drp-day.range-start, .drp-popover .drp-day.range-end { background: var(--purple); color: #fff; font-weight: 700; box-shadow: none; }
   .modal-overlay.open { display: flex; animation: fadeIn 0.18s ease; }
   .modal { background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.8); border-radius: 22px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 30px 70px rgba(20,18,40,0.32); }
   .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: inherit; z-index: 1; }
@@ -531,9 +536,17 @@
 
       <div class="table-card" style="margin-bottom:20px;">
         <div class="table-header">
-          <div class="table-title">📊 Perbandingan Bulan Ini vs Bulan Lalu</div>
+          <div class="table-title" id="monthComparisonTitle">📊 Perbandingan Bulan Ini vs Bulan Lalu</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="periode-field" style="min-width:200px;">
+              <div class="date-range-trigger" id="compare-daterange-display" onclick="openDateRangePicker(event,'compare')" style="padding:8px 10px;font-size:12.5px;">Bulan Ini (Otomatis)</div>
+              <input type="hidden" id="compare-date-from">
+              <input type="hidden" id="compare-date-to">
+            </div>
+            <button class="btn btn-sm btn-outline" title="Kembali ke otomatis: bulan ini vs bulan lalu" onclick="resetComparePeriod(event)">↺</button>
+          </div>
         </div>
-        <div style="padding:20px;">
+        <div style="padding:20px">
           <div id="monthComparisonNote" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;"></div>
           <div class="stats-grid" id="monthComparisonCards"></div>
         </div>
@@ -4794,6 +4807,25 @@ function populateDashboardOutletSelect() {
 }
 
 // ===== DATE RANGE PICKER (klik tanggal mulai, gerakkan kursor, klik tanggal akhir buat kunci) =====
+// Dipakai di lebih dari satu tempat (filter dashboard & periode pembanding) lewat 1 popover
+// yang sama — drpTarget nyimpen field mana yang lagi aktif.
+const DRP_TARGETS = {
+  dashboard: {
+    trigger: 'dashboard-daterange-display',
+    from: 'dashboard-date-from',
+    to: 'dashboard-date-to',
+    emptyLabel: 'Semua Periode',
+    onApply: () => renderDashboard(),
+  },
+  compare: {
+    trigger: 'compare-daterange-display',
+    from: 'compare-date-from',
+    to: 'compare-date-to',
+    emptyLabel: 'Bulan Ini (Otomatis)',
+    onApply: () => renderMonthComparison(),
+  },
+};
+let drpTarget = 'dashboard';
 let drpBaseMonth = null;   // Date object, tanggal 1 di bulan kalender KIRI
 let drpStart = null;       // 'YYYY-MM-DD' | null
 let drpEnd = null;         // 'YYYY-MM-DD' | null — null selama masih "nempel" di kursor
@@ -4806,14 +4838,22 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function drpISO(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; } // m: 0-indexed
 function drpDMY(iso) { const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}`; }
 function drpToday() { const t = new Date(); return drpISO(t.getFullYear(), t.getMonth(), t.getDate()); }
+function drpAddDays(iso, delta) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  return drpISO(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
-function openDateRangePicker(ev) {
+function openDateRangePicker(ev, target) {
   if (ev) ev.stopPropagation();
+  drpTarget = target || 'dashboard';
+  const cfg = DRP_TARGETS[drpTarget];
   const popover = document.getElementById('drpPopover');
-  if (popover.classList.contains('open')) { closeDateRangePicker(); return; }
+  const alreadyOpenForThis = popover.classList.contains('open') && popover.dataset.openFor === drpTarget;
+  if (alreadyOpenForThis) { closeDateRangePicker(); return; }
 
-  const from = document.getElementById('dashboard-date-from').value;
-  const to = document.getElementById('dashboard-date-to').value;
+  const from = document.getElementById(cfg.from).value;
+  const to = document.getElementById(cfg.to).value;
   drpStart = from || null;
   drpEnd = to || null;
   drpLocked = !!(drpStart && drpEnd);
@@ -4824,14 +4864,16 @@ function openDateRangePicker(ev) {
   drpBuildCalendars();
   document.getElementById('drpOverlay').classList.add('open');
   popover.classList.add('open');
-  document.getElementById('dashboard-daterange-display').classList.add('active');
+  popover.dataset.openFor = drpTarget;
+  document.getElementById(cfg.trigger).classList.add('active');
   drpPositionPopover();
 }
 
 function drpPositionPopover() {
-  const trigger = document.getElementById('dashboard-daterange-display');
+  const trigger = document.getElementById(DRP_TARGETS[drpTarget].trigger);
   const popover = document.getElementById('drpPopover');
   const rect = trigger.getBoundingClientRect();
+  popover.style.minWidth = rect.width + 'px';
   const pw = popover.offsetWidth, ph = popover.offsetHeight;
   let left = rect.left;
   let top = rect.bottom + 8;
@@ -4844,7 +4886,7 @@ function drpPositionPopover() {
 function closeDateRangePicker() {
   document.getElementById('drpOverlay').classList.remove('open');
   document.getElementById('drpPopover').classList.remove('open');
-  document.getElementById('dashboard-daterange-display').classList.remove('active');
+  Object.values(DRP_TARGETS).forEach(cfg => document.getElementById(cfg.trigger)?.classList.remove('active'));
 }
 
 function drpChangeMonth(delta) {
@@ -4979,22 +5021,32 @@ function drpUpdateRangeLabel() {
 }
 
 function applyDateRangePicker() {
+  const cfg = DRP_TARGETS[drpTarget];
   if (!drpStart) { closeDateRangePicker(); return; }
   let s = drpStart, e = drpEnd || drpStart;
   if (s > e) { const t = s; s = e; e = t; }
-  document.getElementById('dashboard-date-from').value = s;
-  document.getElementById('dashboard-date-to').value = e;
-  document.getElementById('dashboard-daterange-display').textContent = `${drpDMY(s)} - ${drpDMY(e)}`;
+  document.getElementById(cfg.from).value = s;
+  document.getElementById(cfg.to).value = e;
+  document.getElementById(cfg.trigger).textContent = `${drpDMY(s)} - ${drpDMY(e)}`;
   closeDateRangePicker();
-  renderDashboard();
+  cfg.onApply();
 }
 
 function resetDashboardFilter() {
   document.getElementById('dashboard-outlet').value = '';
   document.getElementById('dashboard-date-from').value = '';
   document.getElementById('dashboard-date-to').value = '';
-  document.getElementById('dashboard-daterange-display').textContent = 'Semua Periode';
+  document.getElementById('dashboard-daterange-display').textContent = DRP_TARGETS.dashboard.emptyLabel;
   renderDashboard();
+}
+
+function resetComparePeriod(ev) {
+  if (ev) ev.stopPropagation();
+  document.getElementById('compare-date-from').value = '';
+  document.getElementById('compare-date-to').value = '';
+  document.getElementById('compare-daterange-display').textContent = DRP_TARGETS.compare.emptyLabel;
+  closeDateRangePicker();
+  renderMonthComparison();
 }
 
 window.addEventListener('resize', () => {
@@ -5130,20 +5182,39 @@ function renderDashboard() {
   renderMonthComparison();
 }
 
-// ===== PERBANDINGAN BULAN INI VS BULAN LALU (apples-to-apples: tgl 1 s.d hari ini) =====
+// ===== PERBANDINGAN PERIODE (default: bulan ini vs bulan lalu, tgl 1 s.d hari ini) =====
+// Kalau user pilih periode custom di field pembanding, dibandingkan apples-to-apples:
+// periode sebelumnya dengan JUMLAH HARI YANG SAMA, persis berakhir sehari sebelum periode terpilih.
 function renderMonthComparison() {
   const data = loadData();
   const outletId = document.getElementById('dashboard-outlet')?.value || '';
 
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth(), todayD = now.getDate();
-  const thisStart = drpISO(y, m, 1);
-  const thisEnd = drpISO(y, m, todayD);
-  const lm = m === 0 ? 11 : m - 1, ly = m === 0 ? y - 1 : y;
-  const daysInLM = new Date(ly, lm + 1, 0).getDate();
-  const cmpDay = Math.min(todayD, daysInLM); // biar tanggal 31 gak error di bulan yg cuma 28/30 hari
-  const lastStart = drpISO(ly, lm, 1);
-  const lastEnd = drpISO(ly, lm, cmpDay);
+  const customFrom = document.getElementById('compare-date-from')?.value || '';
+  const customTo = document.getElementById('compare-date-to')?.value || '';
+
+  let thisStart, thisEnd, lastStart, lastEnd;
+  const isCustom = !!(customFrom && customTo);
+
+  if (isCustom) {
+    thisStart = customFrom;
+    thisEnd = customTo;
+    const durationDays = Math.round((new Date(thisEnd + 'T00:00:00') - new Date(thisStart + 'T00:00:00')) / 86400000) + 1;
+    lastEnd = drpAddDays(thisStart, -1);
+    lastStart = drpAddDays(lastEnd, -(durationDays - 1));
+  } else {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth(), todayD = now.getDate();
+    thisStart = drpISO(y, m, 1);
+    thisEnd = drpISO(y, m, todayD);
+    const lm = m === 0 ? 11 : m - 1, ly = m === 0 ? y - 1 : y;
+    const daysInLM = new Date(ly, lm + 1, 0).getDate();
+    const cmpDay = Math.min(todayD, daysInLM); // biar tanggal 31 gak error di bulan yg cuma 28/30 hari
+    lastStart = drpISO(ly, lm, 1);
+    lastEnd = drpISO(ly, lm, cmpDay);
+  }
+
+  const titleEl = document.getElementById('monthComparisonTitle');
+  if (titleEl) titleEl.textContent = isCustom ? '📊 Perbandingan Periode Terpilih vs Periode Sebelumnya' : '📊 Perbandingan Bulan Ini vs Bulan Lalu';
 
   function invsInRange(from, to) {
     return data.invs.filter(inv => {
