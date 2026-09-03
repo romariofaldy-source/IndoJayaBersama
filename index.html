@@ -1237,7 +1237,8 @@
     <div class="modal-body">
       <div class="form-group full">
         <label>No Surat Jalan</label>
-        <input type="text" id="so-no" placeholder="Auto generate" readonly>
+        <input type="text" id="so-no" placeholder="Auto generate">
+        <small style="color: var(--text-muted);">Nomor otomatis terisi, tapi bisa diedit manual (misalnya untuk pakai ulang nomor SJ lama).</small>
       </div>
       <div class="form-group full">
         <label>Referensi PO Outlet (Opsional)</label>
@@ -1681,6 +1682,20 @@ if (firestoreAvailable) {
     auth = firebase.auth();
     storage = firebase.storage();
     storage.setMaxUploadRetryTime(8000); // jangan retry diam-diam sampai 10 menit kalau gagal — gagal cepat & kasih tau user
+    // Nyalain offline persistence: perubahan yang disimpan pas internet putus/goyang
+    // bakal ke-antre otomatis di IndexedDB dan dikirim sendiri ke cloud begitu koneksi
+    // balik lagi — sebelumnya kalau tab/app ke-close sebelum sempat kekirim, data itu
+    // ilang permanen (cuma sempat nyimpen di localStorage, tapi ketiban tumpuk pas
+    // fetchCloudData narik ulang data dari cloud yang belum punya perubahan itu).
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Offline persistence cuma bisa aktif di 1 tab; tab lain lagi kebuka.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('Browser ini tidak mendukung offline persistence Firestore.');
+      } else {
+        console.error('Gagal mengaktifkan offline persistence:', err);
+      }
+    });
   } catch (e) {
     console.error('Firebase gagal diinisialisasi:', e);
     firestoreAvailable = false;
@@ -1736,6 +1751,11 @@ async function fetchCloudData() {
           cloudDocRef.set(appDataCache).catch(err => console.error('Gagal sync sttps ke cloud:', err));
         }
       }
+      // Selamatkan data yang sempat kesimpen di HP/browser ini (localStorage) tapi
+      // ternyata belum sampai ke cloud — misal koneksi putus/goyang pas terakhir nyimpen,
+      // atau tab/app ke-close sebelum sempat kekirim. Tanpa ini, record yang cuma ada
+      // lokal bakal "hilang" kelihatannya, padahal cuma ketimpa data cloud yang lebih lama.
+      appDataCache = recoverMissingLocalRecords(appDataCache);
     } else {
       // Belum ada data di cloud — coba migrasi dari localStorage (kalau ada data lama di device ini)
       const legacy = {
@@ -1776,6 +1796,44 @@ async function fetchCloudData() {
 
 function loadData() {
   return appDataCache;
+}
+
+// Bandingin tiap kategori data (produk, PO, SJ, invoice, dll) antara yang barusan
+// ditarik dari cloud VS cadangan localStorage di device ini. Kalau ada record yang
+// ADA di localStorage tapi GA ADA di cloud (dicek dari id-nya), berarti record itu
+// dulu sempat kesimpen lokal tapi gagal/belum kekirim ke cloud — digabungin balik
+// biar ga hilang, terus langsung disimpan ulang ke cloud supaya device lain juga
+// ikut punya datanya.
+function recoverMissingLocalRecords(cloudData) {
+  const arrayFields = ['products', 'customers', 'pos', 'sos', 'invs', 'masuks', 'sttps', 'paymentBatches'];
+  const merged = Object.assign({}, cloudData);
+  let recoveredCount = 0;
+  const recoveredNotes = [];
+
+  arrayFields.forEach(field => {
+    let local = [];
+    try { local = JSON.parse(localStorage.getItem(field) || '[]'); } catch (e) { local = []; }
+    if (!Array.isArray(local) || local.length === 0) return;
+
+    const cloudArr = Array.isArray(merged[field]) ? merged[field] : [];
+    const cloudIds = new Set(cloudArr.map(item => item && item.id));
+    const missing = local.filter(item => item && item.id != null && !cloudIds.has(item.id));
+    if (missing.length > 0) {
+      merged[field] = cloudArr.concat(missing);
+      recoveredCount += missing.length;
+      recoveredNotes.push(`${missing.length} ${field}`);
+    }
+  });
+
+  if (recoveredCount > 0 && cloudDocRef) {
+    console.warn(`⚠️ Ditemukan data lokal yang belum sempat sinkron ke cloud, dipulihkan otomatis: ${recoveredNotes.join(', ')}`);
+    cloudDocRef.set(merged).catch(err => console.error('Gagal menyimpan data hasil pemulihan ke cloud:', err));
+    setTimeout(() => {
+      showToast(`⚠️ ${recoveredCount} data yang sempat ketinggalan sync (${recoveredNotes.join(', ')}) berhasil dipulihkan.`);
+    }, 1200);
+  }
+
+  return merged;
 }
 
 // ===== GAMBAR PRODUK =====
