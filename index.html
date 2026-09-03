@@ -4597,7 +4597,11 @@ function renderInvs() {
     const isDueSoon = !isLunas && !isPartial && !isOverdue && inv.due && inv.due <= addDays(todayStr, 3);
     
     const badgeClass = isLunas ? 'badge-green' : isPartial ? 'badge-amber' : isOverdue ? 'badge-coral' : inv.status === 'Terbit' ? 'badge-blue' : 'badge-amber';
-    const badgeLabel = isOverdue ? '⚠️ Jatuh Tempo' : isPartial ? '🟡 Lunas Sebagian' : inv.status;
+    // Dulu badge overdue nimpa status asli invoice (selalu nunjukin "Jatuh Tempo" doang),
+    // jadi kalau status diganti dari Draft ke Terbit tapi tanggal jatuh temponya udah lewat,
+    // badge-nya kelihatan SAMA AJA kayak sebelum diedit — makanya kesannya "ga kesimpen".
+    // Sekarang status aslinya tetap ditampilin, cuma ditambah penanda jatuh tempo di sampingnya.
+    const badgeLabel = isPartial ? '🟡 Lunas Sebagian' : (isOverdue ? `⚠️ ${inv.status} · Jatuh Tempo` : inv.status);
     const rowStyle = isOverdue ? 'background: rgba(255,123,110,0.07);' : isDueSoon ? 'background: rgba(245,166,35,0.07);' : '';
     
     const dueDisplay = inv.due
