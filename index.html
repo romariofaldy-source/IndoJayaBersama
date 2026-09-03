@@ -648,6 +648,28 @@
         <button class="btn btn-primary" onclick="openPOModal()">+ Buat PO</button>
         <button class="btn btn-success" onclick="exportTableToExcel('po')">📤 Export Excel</button>
       </div>
+      <div class="table-card" style="margin-bottom: 20px;">
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Status</label>
+              <select id="po-filter-status" onchange="applyPOFilter()">
+                <option value="">-- Semua Status --</option>
+                <option value="Draft">Draft</option>
+                <option value="Diproses">Diproses (SJ Dibuat)</option>
+                <option value="Selesai">Selesai</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Outlet</label>
+              <select id="po-filter-customer" onchange="applyPOFilter()"></select>
+            </div>
+            <div class="form-group" style="flex:0 0 auto;">
+              <button class="btn btn-outline" onclick="resetPOFilter()">✕ Reset Filter</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="table-card">
         <div class="table-scroll">
         <table>
@@ -698,6 +720,27 @@
         <button class="btn btn-primary" onclick="openSOModal()">+ Buat Surat Jalan</button>
         <button class="btn btn-success" onclick="exportTableToExcel('so')">📤 Export Excel</button>
       </div>
+      <div class="table-card" style="margin-bottom: 20px;">
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Status</label>
+              <select id="so-filter-status" onchange="applySOFilter()">
+                <option value="">-- Semua Status --</option>
+                <option value="Dikirim">Dikirim</option>
+                <option value="Selesai">Selesai</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Customer</label>
+              <select id="so-filter-customer" onchange="applySOFilter()"></select>
+            </div>
+            <div class="form-group" style="flex:0 0 auto;">
+              <button class="btn btn-outline" onclick="resetSOFilter()">✕ Reset Filter</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="table-card">
         <div class="table-scroll">
         <table>
@@ -725,6 +768,29 @@
         <button class="btn btn-pdf" onclick="openTransferModal()">💸 Terima Transfer</button>
         <button class="btn btn-outline" onclick="openTransferHistoryModal()">📜 Riwayat Transfer</button>
         <button class="btn btn-success" onclick="exportTableToExcel('inv')">📤 Export Excel</button>
+      </div>
+      <div class="table-card" style="margin-bottom: 20px;">
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Status</label>
+              <select id="inv-filter-status" onchange="applyInvFilter()">
+                <option value="">-- Semua Status --</option>
+                <option value="BelumLunas">Belum Lunas</option>
+                <option value="Lunas Sebagian">Lunas Sebagian</option>
+                <option value="Lunas">Lunas</option>
+                <option value="JatuhTempo">⚠️ Jatuh Tempo</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Customer</label>
+              <select id="inv-filter-customer" onchange="applyInvFilter()"></select>
+            </div>
+            <div class="form-group" style="flex:0 0 auto;">
+              <button class="btn btn-outline" onclick="resetInvFilter()">✕ Reset Filter</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="table-card">
         <div class="table-scroll">
@@ -1707,6 +1773,13 @@ if (firestoreAvailable) {
 // ===== DATA MANAGEMENT =====
 let currentPage = 'dashboard';
 let tableSearchQuery = { po: '', so: '', inv: '' };
+// Filter dropdown (Status & Customer/Outlet) per halaman — terpisah dari kotak
+// pencarian teks di atas, dan digabung (AND) dengan pencarian teks itu di render masing2.
+let tableFilters = {
+  po: { status: '', customer: '' },
+  so: { status: '', customer: '' },
+  inv: { status: '', customer: '' }
+};
 let pdfDocData = {};
 const statuses = ['Draft', 'Confirmed', 'Completed', 'Cancelled'];
 const colors = { Draft: '#6BB5E8', Confirmed: '#7C6FF7', Completed: '#5EC68A', Cancelled: '#FF7B6E' };
@@ -2650,6 +2723,21 @@ function populateCustomerSelect(selectId, selectedId, type) {
       .join('');
 }
 
+// Dropdown filter "Customer/Outlet" di halaman PO / Surat Jalan / Invoice (BEDA dari
+// populateCustomerSelect di atas yang buat form modal — ini buat filter list-nya).
+// Isinya di-refresh tiap render biar selalu ikut data customer terbaru, dan pilihan
+// yang lagi aktif (selectedId) tetap kepilih ulang.
+function populateFilterCustomerSelect(selectId, selectedId) {
+  const data = loadData();
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = `<option value="">-- Semua Outlet --</option>` +
+    data.customers
+      .filter(c => c.type === 'outlet')
+      .map(c => `<option value="${c.id}" ${c.id == selectedId ? 'selected' : ''}>${c.name}</option>`)
+      .join('');
+}
+
 function showSelectedAddress(selectId, addrBoxId) {
   const data = loadData();
   const select = document.getElementById(selectId);
@@ -3433,20 +3521,39 @@ function savePO() {
   resetPOModal();
 }
 
+function applyPOFilter() {
+  tableFilters.po.status = document.getElementById('po-filter-status').value;
+  tableFilters.po.customer = document.getElementById('po-filter-customer').value;
+  renderPOs();
+}
+
+function resetPOFilter() {
+  tableFilters.po = { status: '', customer: '' };
+  const statusEl = document.getElementById('po-filter-status');
+  if (statusEl) statusEl.value = '';
+  renderPOs();
+}
+
 function renderPOs() {
   const data = loadData();
   const tbody = document.getElementById('po-table');
   const q = tableSearchQuery.po;
 
+  populateFilterCustomerSelect('po-filter-customer', tableFilters.po.customer);
+
   const filtered = data.pos.filter(po => {
+    if (tableFilters.po.status && po.status !== tableFilters.po.status) return false;
+    if (tableFilters.po.customer && String(po.supplier) !== String(tableFilters.po.customer)) return false;
     if (!q) return true;
     const supplier = data.customers.find(c => c.id == po.supplier)?.name || '';
     const haystack = `${po.no} ${supplier} ${po.status} ${po.notes || ''}`.toLowerCase();
     return haystack.includes(q);
   });
 
+  const hasActiveFilter = !!(tableFilters.po.status || tableFilters.po.customer);
   if (filtered.length === 0 && data.pos.length > 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada PO yang cocok dengan pencarian "${q}"</td></tr>`;
+    const msg = q ? `Tidak ada PO yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada PO yang cocok dengan filter yang dipilih.' : 'Tidak ada PO.');
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
     return;
   }
 
@@ -3914,20 +4021,39 @@ function saveSO() {
   }
 }
 
+function applySOFilter() {
+  tableFilters.so.status = document.getElementById('so-filter-status').value;
+  tableFilters.so.customer = document.getElementById('so-filter-customer').value;
+  renderSOs();
+}
+
+function resetSOFilter() {
+  tableFilters.so = { status: '', customer: '' };
+  const statusEl = document.getElementById('so-filter-status');
+  if (statusEl) statusEl.value = '';
+  renderSOs();
+}
+
 function renderSOs() {
   const data = loadData();
   const tbody = document.getElementById('so-table');
   const q = tableSearchQuery.so;
 
+  populateFilterCustomerSelect('so-filter-customer', tableFilters.so.customer);
+
   const filtered = data.sos.filter(so => {
+    if (tableFilters.so.status && so.status !== tableFilters.so.status) return false;
+    if (tableFilters.so.customer && String(so.customer) !== String(tableFilters.so.customer)) return false;
     if (!q) return true;
     const customer = data.customers.find(c => c.id == so.customer)?.name || '';
     const haystack = `${so.no} ${customer} ${so.poNo || ''} ${so.status} ${so.driver || ''} ${so.notes || ''}`.toLowerCase();
     return haystack.includes(q);
   });
 
+  const hasActiveFilter = !!(tableFilters.so.status || tableFilters.so.customer);
   if (filtered.length === 0 && data.sos.length > 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"</td></tr>`;
+    const msg = q ? `Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Surat Jalan yang cocok dengan filter yang dipilih.' : 'Tidak ada Surat Jalan.');
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
     return;
   }
   
@@ -4407,10 +4533,25 @@ function saveInv() {
   resetInvModal();
 }
 
+function applyInvFilter() {
+  tableFilters.inv.status = document.getElementById('inv-filter-status').value;
+  tableFilters.inv.customer = document.getElementById('inv-filter-customer').value;
+  renderInvs();
+}
+
+function resetInvFilter() {
+  tableFilters.inv = { status: '', customer: '' };
+  const statusEl = document.getElementById('inv-filter-status');
+  if (statusEl) statusEl.value = '';
+  renderInvs();
+}
+
 function renderInvs() {
   const data = loadData();
   const tbody = document.getElementById('inv-table');
   const todayStr = today();
+
+  populateFilterCustomerSelect('inv-filter-customer', tableFilters.inv.customer);
 
   // Kumpulkan semua nomor invoice yang sudah pernah dilampirkan ke Tanda Terima Dokumen
   const sentInvNos = new Set();
@@ -4421,14 +4562,29 @@ function renderInvs() {
 
   const q = tableSearchQuery.inv;
   const filteredInvs = data.invs.filter(inv => {
+    if (tableFilters.inv.customer && String(inv.customer) !== String(tableFilters.inv.customer)) return false;
+
+    const statusFilter = tableFilters.inv.status;
+    if (statusFilter) {
+      const isLunas = inv.status === 'Lunas';
+      const isPartial = inv.status === 'Lunas Sebagian';
+      const isOverdue = !isLunas && !isPartial && inv.due && inv.due < todayStr;
+      if (statusFilter === 'BelumLunas' && isLunas) return false;
+      if (statusFilter === 'Lunas Sebagian' && !isPartial) return false;
+      if (statusFilter === 'Lunas' && !isLunas) return false;
+      if (statusFilter === 'JatuhTempo' && !isOverdue) return false;
+    }
+
     if (!q) return true;
     const customer = data.customers.find(c => c.id == inv.customer)?.name || '';
     const haystack = `${inv.no} ${customer} ${inv.soNo || ''} ${inv.status}`.toLowerCase();
     return haystack.includes(q);
   });
 
+  const hasActiveFilter = !!(tableFilters.inv.status || tableFilters.inv.customer);
   if (filteredInvs.length === 0 && data.invs.length > 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada Invoice yang cocok dengan pencarian "${q}"</td></tr>`;
+    const msg = q ? `Tidak ada Invoice yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Invoice yang cocok dengan filter yang dipilih.' : 'Tidak ada Invoice.');
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
     return;
   }
 
@@ -6285,6 +6441,17 @@ function switchPage(pageName) {
     searchEl.placeholder = searchPlaceholders[pageName] || 'Cari...';
   }
   tableSearchQuery = { po: '', so: '', inv: '' };
+
+  // Reset dropdown filter Status/Customer juga tiap pindah halaman, sama kayak kotak pencarian
+  tableFilters = {
+    po: { status: '', customer: '' },
+    so: { status: '', customer: '' },
+    inv: { status: '', customer: '' }
+  };
+  ['po-filter-status', 'so-filter-status', 'inv-filter-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 
   renderActivePage(pageName);
 }
