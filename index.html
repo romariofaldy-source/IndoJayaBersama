@@ -797,14 +797,14 @@
         <table>
           <thead>
             <tr>
+              <th>Tanggal</th>
               <th>No Invoice</th>
               <th>Customer</th>
               <th>Ref SJ</th>
-              <th>Tanggal</th>
               <th>Tanggal Kirim</th>
               <th>Jatuh Tempo</th>
-              <th>Total</th>
               <th>Status</th>
+              <th>Total</th>
               <th>Terkirim</th>
               <th>Aksi</th>
             </tr>
@@ -4634,14 +4634,14 @@ function renderInvs() {
     }
     
     return `<tr style="${rowStyle}">
+      <td>${fmtDate(inv.date)}</td>
       <td><strong>${inv.no}</strong></td>
       <td>${customer}</td>
       <td>${inv.soNo || '-'}</td>
-      <td>${fmtDate(inv.date)}</td>
       <td>${tglKirimDisplay}</td>
       <td>${dueDisplay}</td>
-      <td>${rupiah(total)}</td>
       <td><span class="badge ${badgeClass}">${badgeLabel}</span>${paidInfo}${batchInfo}</td>
+      <td>${rupiah(total)}</td>
       <td>${sentDisplay}</td>
       <td class="action-btns">
         ${!isLunas ? `<button class="btn btn-sm btn-success" onclick="markInvLunas(${inv.id})">✓ ${isPartial ? 'Lunasi Sisa' : 'Lunas'}</button>` : ''}
