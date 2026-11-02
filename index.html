@@ -727,8 +727,16 @@
               <label>Status</label>
               <select id="so-filter-status" onchange="applySOFilter()">
                 <option value="">-- Semua Status --</option>
-                <option value="Dikirim">Dikirim</option>
-                <option value="Selesai">Selesai</option>
+                <option value="Dikirim">🚚 Sedang Dikirim</option>
+                <option value="Selesai">✅ Selesai Dikirim</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Status Invoice</label>
+              <select id="so-filter-invoice" onchange="applySOFilter()">
+                <option value="">-- Semua --</option>
+                <option value="belum">⏳ Belum dibuatkan Invoice</option>
+                <option value="sudah">🧾 Sudah dibuatkan Invoice</option>
               </select>
             </div>
             <div class="form-group" style="flex:1; min-width:200px;">
@@ -751,7 +759,8 @@
               <th>Ref PO</th>
               <th>Tanggal</th>
               <th>Total Item</th>
-              <th>Status</th>
+              <th>Status Kirim</th>
+              <th>Status Invoice</th>
               <th>Aksi</th>
             </tr>
           </thead>
@@ -1320,10 +1329,10 @@
       </div>
       <div class="form-group full" id="so-customer-address" style="display:none; background: var(--bg); padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-top: -6px;"></div>
       <div class="form-group">
-        <label>Status</label>
+        <label>Status Pengiriman</label>
         <select id="so-status">
-          <option value="Dikirim">Dikirim</option>
-          <option value="Selesai">Selesai</option>
+          <option value="Dikirim">🚚 Sedang Dikirim</option>
+          <option value="Selesai">✅ Selesai Dikirim</option>
         </select>
       </div>
 
@@ -1777,7 +1786,7 @@ let tableSearchQuery = { po: '', so: '', inv: '' };
 // pencarian teks di atas, dan digabung (AND) dengan pencarian teks itu di render masing2.
 let tableFilters = {
   po: { status: '', customer: '' },
-  so: { status: '', customer: '' },
+  so: { status: '', customer: '', invoice: '' },
   inv: { status: '', customer: '' }
 };
 let pdfDocData = {};
@@ -1814,6 +1823,7 @@ async function fetchCloudData() {
     const snap = await cloudDocRef.get();
     if (snap.exists) {
       const cloud = snap.data() || {};
+      cloudBase = cloneData(Object.assign(emptyData(), cloud)); // titik acuan buat merge 3-arah
       appDataCache = Object.assign(emptyData(), cloud);
       // Kalau sttps di Firestore kosong tapi localStorage punya data,
       // ambil dari localStorage dan langsung sync ke Firestore
@@ -1821,7 +1831,7 @@ async function fetchCloudData() {
         const localSttps = JSON.parse(localStorage.getItem('sttps') || '[]');
         if (localSttps.length > 0) {
           appDataCache.sttps = localSttps;
-          cloudDocRef.set(appDataCache).catch(err => console.error('Gagal sync sttps ke cloud:', err));
+          needsCloudFlushAfterLoad = true;
         }
       }
       // Selamatkan data yang sempat kesimpen di HP/browser ini (localStorage) tapi
@@ -1829,6 +1839,8 @@ async function fetchCloudData() {
       // atau tab/app ke-close sebelum sempat kekirim. Tanpa ini, record yang cuma ada
       // lokal bakal "hilang" kelihatannya, padahal cuma ketimpa data cloud yang lebih lama.
       appDataCache = recoverMissingLocalRecords(appDataCache);
+      await migrateSOPhotosOut();
+      if (needsCloudFlushAfterLoad) { needsCloudFlushAfterLoad = false; pendingCloudData = appDataCache; clearTimeout(cloudSaveTimer); cloudSaveTimer = setTimeout(flushCloudSave, 300); }
     } else {
       // Belum ada data di cloud — coba migrasi dari localStorage (kalau ada data lama di device ini)
       const legacy = {
@@ -1846,6 +1858,7 @@ async function fetchCloudData() {
       };
       appDataCache = legacy;
       await cloudDocRef.set(legacy);
+      cloudBase = cloneData(legacy);
     }
     cloudReady = true;
   } catch (err) {
@@ -1877,6 +1890,7 @@ function loadData() {
 // dulu sempat kesimpen lokal tapi gagal/belum kekirim ke cloud — digabungin balik
 // biar ga hilang, terus langsung disimpan ulang ke cloud supaya device lain juga
 // ikut punya datanya.
+let needsCloudFlushAfterLoad = false;
 function recoverMissingLocalRecords(cloudData) {
   const arrayFields = ['products', 'customers', 'pos', 'sos', 'invs', 'masuks', 'sttps', 'paymentBatches'];
   const merged = Object.assign({}, cloudData);
@@ -1900,7 +1914,7 @@ function recoverMissingLocalRecords(cloudData) {
 
   if (recoveredCount > 0 && cloudDocRef) {
     console.warn(`⚠️ Ditemukan data lokal yang belum sempat sinkron ke cloud, dipulihkan otomatis: ${recoveredNotes.join(', ')}`);
-    cloudDocRef.set(merged).catch(err => console.error('Gagal menyimpan data hasil pemulihan ke cloud:', err));
+    needsCloudFlushAfterLoad = true; // disimpan lewat jalur merge-transaction (bukan set() yang nimpa total)
     setTimeout(() => {
       showToast(`⚠️ ${recoveredCount} data yang sempat ketinggalan sync (${recoveredNotes.join(', ')}) berhasil dipulihkan.`);
     }, 1200);
@@ -2094,17 +2108,130 @@ document.addEventListener('keydown', (e) => {
 // nutup tab dalam waktu <400ms — tanpa ini, data cuma nyimpen di localStorage
 // device itu doang dan GA PERNAH sampai ke cloud, jadi device lain gak akan lihat.
 let pendingCloudData = null;
-function flushCloudSave() {
+let cloudBase = null;      // salinan data cloud TERAKHIR yang kita tahu (acuan merge)
+let cloudSaving = false;   // lagi ada transaksi simpan yang berjalan
+let cloudRetryTimer = null;
+let cloudFailToastAt = 0;
+
+function cloneData(d) {
+  try { return structuredClone(d); } catch (e) { return JSON.parse(JSON.stringify(d)); }
+}
+
+// Merge 3-arah per-record (berdasarkan id):
+//   base   = data cloud terakhir yang diketahui device ini
+//   mine   = data lokal sekarang (sudah termasuk perubahan user)
+//   theirs = data cloud TERBARU (bisa sudah berubah dari device/tab lain)
+// Hasil: perubahan device lain TIDAK ketimpa, dan perubahan kita juga tidak hilang.
+function mergeArrayById(base, mine, theirs) {
+  base = Array.isArray(base) ? base : [];
+  mine = Array.isArray(mine) ? mine : [];
+  theirs = Array.isArray(theirs) ? theirs : [];
+  const key = x => String(x && x.id);
+  const baseMap = new Map(base.map(x => [key(x), x]));
+  const mineMap = new Map(mine.map(x => [key(x), x]));
+  const theirsMap = new Map(theirs.map(x => [key(x), x]));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const result = [];
+  const used = new Set();
+
+  theirs.forEach(t => {
+    const k = key(t);
+    used.add(k);
+    const b = baseMap.get(k);
+    const m = mineMap.get(k);
+    if (!m) {
+      // Ada di cloud, tidak ada di lokal
+      if (b) return;            // kita yang hapus (dulu ada di base) -> tetap terhapus
+      result.push(t);           // record baru dari device lain -> pertahankan
+    } else if (b && !same(m, b)) {
+      result.push(m);           // kita yang edit -> pakai versi kita
+    } else {
+      result.push(t);           // kita tidak ubah -> pakai versi cloud (bisa jadi hasil edit device lain)
+    }
+  });
+  mine.forEach(m => {
+    const k = key(m);
+    if (used.has(k)) return;
+    const b = baseMap.get(k);
+    if (!b) { result.push(m); return; }       // record baru buatan kita yang belum ada di cloud
+    if (!same(m, b)) result.push(m);          // device lain hapus, tapi kita sempat edit -> selamatkan
+    // kalau tidak kita ubah & device lain hapus -> biarkan terhapus
+  });
+  return result;
+}
+
+function mergeAppData(base, mine, theirs) {
+  base = base || {};
+  const out = Object.assign(emptyData(), theirs || {});
+  ['products', 'customers', 'pos', 'sos', 'invs', 'masuks', 'sttps', 'paymentBatches'].forEach(f => {
+    out[f] = mergeArrayById(base[f], mine[f], (theirs || {})[f]);
+  });
+  ['profile', 'company', 'payment', 'logo'].forEach(f => {
+    if (JSON.stringify(mine[f]) !== JSON.stringify(base[f])) out[f] = mine[f];
+  });
+  return out;
+}
+
+function hasUnsavedLocalChanges() {
+  return !!(pendingCloudData || cloudSaveTimer || cloudSaving);
+}
+
+function reportSaveFailure(err) {
+  console.error('Gagal menyimpan ke cloud:', err);
+  const now = Date.now();
+  if (now - cloudFailToastAt < 15000) return; // jangan spam toast
+  cloudFailToastAt = now;
+  const tooBig = err && (err.code === 'invalid-argument' || /size|too large|1048576/i.test(String(err.message || '')));
+  showToast(tooBig
+    ? '⚠️ DATA GAGAL TERSIMPAN: ukuran data cloud sudah melewati batas 1MB. Hubungi admin sebelum input data baru!'
+    : '⚠️ Gagal sinkron ke cloud, data aman di perangkat ini & dicoba kirim ulang otomatis...');
+}
+
+// Kirim data ke cloud SEKARANG lewat transaksi + merge (bukan set() yang menimpa total).
+async function flushCloudSave() {
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = null;
-  if (!pendingCloudData || !firestoreAvailable || !cloudDocRef) return;
-  const toSave = pendingCloudData;
+  if (!pendingCloudData || !firestoreAvailable || !cloudDocRef || !db) return;
+  if (cloudSaving) return; // akan dipanggil ulang begitu transaksi berjalan selesai
+  cloudSaving = true;
   pendingCloudData = null;
-  cloudDocRef.set(toSave).catch(err => {
-    console.error('Gagal menyimpan ke cloud:', err);
-    showToast('Gagal sinkron ke cloud. Cek koneksi internet.');
-  });
+  try {
+    const merged = await db.runTransaction(async tx => {
+      const snap = await tx.get(cloudDocRef);
+      const theirs = snap.exists ? (snap.data() || {}) : {};
+      const result = mergeAppData(cloudBase, appDataCache, theirs);
+      tx.set(cloudDocRef, result);
+      return result;
+    });
+    cloudBase = cloneData(merged);
+    cloudFailToastAt = 0;
+    // Kalau ternyata ada perubahan dari device lain yang ikut ke-merge, tampilkan juga di layar ini
+    if (JSON.stringify(merged) !== JSON.stringify(appDataCache) && !pendingCloudData) {
+      appDataCache = merged;
+      try {
+        localStorage.setItem('sos', JSON.stringify(merged.sos));
+        localStorage.setItem('invs', JSON.stringify(merged.invs));
+        localStorage.setItem('pos', JSON.stringify(merged.pos));
+      } catch (e) {}
+      if (isAnyModalOpen()) { pendingRealtimeUpdate = true; } else { renderActivePage(currentPage); }
+    }
+    // Ada ukuran mendekati batas? Kasih peringatan dini.
+    try {
+      const kb = Math.round(JSON.stringify(merged).length / 1024);
+      if (kb > 800) showToast(`⚠️ Ukuran data cloud ${kb}KB (batas 1024KB). Segera arsipkan data lama.`);
+    } catch (e) {}
+  } catch (err) {
+    pendingCloudData = appDataCache; // simpan lagi sebagai antrean, coba ulang
+    reportSaveFailure(err);
+    clearTimeout(cloudRetryTimer);
+    cloudRetryTimer = setTimeout(flushCloudSave, 8000);
+  } finally {
+    cloudSaving = false;
+    if (pendingCloudData && !cloudRetryTimer) setTimeout(flushCloudSave, 200);
+    cloudRetryTimer = null;
+  }
 }
+window.addEventListener('online', () => { if (pendingCloudData) flushCloudSave(); });
 
 // Begitu tab/app di-minimize, pindah app, atau ditutup — paksa kirim sisa data yang pending
 document.addEventListener('visibilitychange', () => {
@@ -3120,7 +3247,7 @@ function exportTableToExcel(type) {
     data.sos.forEach(so => {
       const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
       so.items.forEach(item => rows.push({
-        'No Surat Jalan': so.no, 'Ref PO': so.poNo || '-', 'Customer': customer, 'Tanggal': so.date, 'Status': so.status, 'Driver': so.driver || '',
+        'No Surat Jalan': so.no, 'Ref PO': so.poNo || '-', 'Customer': customer, 'Tanggal': so.date, 'Status Kirim': so.status === 'Selesai' ? 'Selesai Dikirim' : 'Sedang Dikirim', 'Status Invoice': getInvoicesOfSO(so, data).length ? 'Sudah Inv (' + getInvoicesOfSO(so, data).map(i => i.no).join(', ') + ')' : 'Belum Inv', 'Driver': so.driver || '',
         'Nama Barang': item.name, 'Qty': item.qty, 'UOM': item.uom || 'pcs', 'Harga': item.price, 'Subtotal': item.qty * item.price
       }));
     });
@@ -4021,16 +4148,40 @@ function saveSO() {
   }
 }
 
+// Cari invoice yang sudah memakai SJ ini. Dihitung LANGSUNG dari data invoice (bukan disimpan di SJ),
+// jadi otomatis akurat: invoice dihapus -> SJ balik jadi "Belum Inv"; invoice dibuat -> langsung "Sudah Inv".
+function getInvoicesOfSO(so, data) {
+  return (data.invs || []).filter(inv => {
+    const ids = (inv.soIds && inv.soIds.length) ? inv.soIds : (inv.soId ? [inv.soId] : []);
+    if (ids.some(id => id == so.id)) return true;
+    if (!ids.length && inv.soNo) return String(inv.soNo).split(',').map(x => x.trim()).includes(so.no);
+    return false;
+  });
+}
+
+function toggleSOStatus(id) {
+  const data = loadData();
+  const so = data.sos.find(s => s.id === id);
+  if (!so) return;
+  so.status = so.status === 'Selesai' ? 'Dikirim' : 'Selesai';
+  saveData(data);
+  renderSOs();
+  showToast(so.status === 'Selesai' ? '✅ SJ ditandai Selesai Dikirim' : '🚚 SJ dikembalikan ke Sedang Dikirim');
+}
+
 function applySOFilter() {
+  tableFilters.so.invoice = document.getElementById('so-filter-invoice').value;
   tableFilters.so.status = document.getElementById('so-filter-status').value;
   tableFilters.so.customer = document.getElementById('so-filter-customer').value;
   renderSOs();
 }
 
 function resetSOFilter() {
-  tableFilters.so = { status: '', customer: '' };
+  tableFilters.so = { status: '', customer: '', invoice: '' };
   const statusEl = document.getElementById('so-filter-status');
   if (statusEl) statusEl.value = '';
+  const invEl = document.getElementById('so-filter-invoice');
+  if (invEl) invEl.value = '';
   renderSOs();
 }
 
@@ -4044,23 +4195,34 @@ function renderSOs() {
   const filtered = data.sos.filter(so => {
     if (tableFilters.so.status && so.status !== tableFilters.so.status) return false;
     if (tableFilters.so.customer && String(so.customer) !== String(tableFilters.so.customer)) return false;
+    if (tableFilters.so.invoice) {
+      const hasInv = getInvoicesOfSO(so, data).length > 0;
+      if (tableFilters.so.invoice === 'sudah' && !hasInv) return false;
+      if (tableFilters.so.invoice === 'belum' && hasInv) return false;
+    }
     if (!q) return true;
     const customer = data.customers.find(c => c.id == so.customer)?.name || '';
-    const haystack = `${so.no} ${customer} ${so.poNo || ''} ${so.status} ${so.driver || ''} ${so.notes || ''}`.toLowerCase();
+    const invNos = getInvoicesOfSO(so, data).map(i => i.no).join(' ');
+    const haystack = `${so.no} ${customer} ${so.poNo || ''} ${so.status} ${so.driver || ''} ${so.notes || ''} ${invNos}`.toLowerCase();
     return haystack.includes(q);
-  });
+  }).slice().reverse(); // SJ terbaru di paling atas
 
-  const hasActiveFilter = !!(tableFilters.so.status || tableFilters.so.customer);
+  const hasActiveFilter = !!(tableFilters.so.status || tableFilters.so.customer || tableFilters.so.invoice);
   if (filtered.length === 0 && data.sos.length > 0) {
     const msg = q ? `Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Surat Jalan yang cocok dengan filter yang dipilih.' : 'Tidak ada Surat Jalan.');
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
     return;
   }
   
   tbody.innerHTML = filtered.map(so => {
     const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
     const badgeClass = so.status === 'Selesai' ? 'badge-green' : 'badge-blue';
-    const photoCount = (so.photos || []).length;
+    const statusLabel = so.status === 'Selesai' ? '✅ Selesai Dikirim' : '🚚 Sedang Dikirim';
+    const linkedInvs = getInvoicesOfSO(so, data);
+    const invBadge = linkedInvs.length > 0
+      ? `<span class="badge badge-green">🧾 Sudah Inv</span><br><span style="font-size:11px;color:var(--text-muted)">${linkedInvs.map(i => i.no).join(', ')}</span>`
+      : `<span class="badge badge-amber">⏳ Belum Inv</span>`;
+    const photoCount = soPhotoCount(so);
     const photoBadge = photoCount > 0
       ? `<span class="photo-badge has-photos">📷 ${photoCount}</span>`
       : `<span class="photo-badge">📷 0</span>`;
@@ -4071,8 +4233,10 @@ function renderSOs() {
       <td>${so.poNo || '-'}</td>
       <td>${fmtDate(so.date)}</td>
       <td>${so.items.length}</td>
-      <td><span class="badge ${badgeClass}">${so.status}</span><br>${photoBadge}</td>
+      <td><span class="badge ${badgeClass}">${statusLabel}</span><br>${photoBadge}</td>
+      <td>${invBadge}</td>
       <td class="action-btns">
+        <button class="btn btn-sm btn-outline" onclick="toggleSOStatus(${so.id})" title="Ganti status pengiriman">${so.status === 'Selesai' ? '↩️ Dikirim' : '✅ Selesai'}</button>
         <button class="btn btn-sm btn-pdf" onclick="previewSOFromList(${so.id})">Lihat</button>
         <button class="btn btn-sm btn-outline" onclick="openSOPhotoModal(${so.id})">📷</button>
         <button class="btn btn-sm btn-outline" onclick="editSO(${so.id})">✏️ Edit</button>
@@ -4117,14 +4281,67 @@ function deleteSO(id) {
 // ===== FOTO BUKTI ANTAR (SURAT JALAN) =====
 let currentSOPhotoId = null;
 
-function openSOPhotoModal(id) {
+// Foto bukti antar disimpan TERPISAH (1 dokumen per SJ: erp/sjphoto_<id>), bukan di dokumen utama.
+// Dulu foto base64 numpuk di dokumen utama sampai lewat batas 1MB Firestore -> simpan gagal diam-diam
+// -> Surat Jalan yang baru dibuat "hilang" setelah refresh / pindah device.
+let sjPhotoCache = {};
+
+async function ensureSOPhotos(soId) {
+  const key = String(soId);
+  if (sjPhotoCache[key]) return sjPhotoCache[key];
+  let photos = [];
+  const so = (appDataCache.sos || []).find(s => s.id == soId);
+  if (so && Array.isArray(so.photos) && so.photos.length) photos = so.photos; // data lama yang belum dimigrasi
+  if (firestoreAvailable && db) {
+    try {
+      const snap = await db.collection('erp').doc('sjphoto_' + key).get();
+      if (snap.exists) photos = (snap.data() || {}).photos || photos;
+    } catch (e) { console.error('Gagal ambil foto SJ:', e); }
+  }
+  sjPhotoCache[key] = photos;
+  return photos;
+}
+
+async function saveSOPhotos(soId, photos) {
+  sjPhotoCache[String(soId)] = photos;
+  if (!firestoreAvailable || !db) return;
+  await db.collection('erp').doc('sjphoto_' + soId).set({ photos });
+}
+
+// Pindahkan foto lama yang masih numpuk di dokumen utama ke dokumen terpisah (sekali jalan, otomatis)
+async function migrateSOPhotosOut() {
+  if (!firestoreAvailable || !db) return;
+  let changed = false;
+  for (const so of (appDataCache.sos || [])) {
+    if (Array.isArray(so.photos) && so.photos.length) {
+      try {
+        await saveSOPhotos(so.id, so.photos);
+        so.photoCount = so.photos.length;
+        delete so.photos;
+        changed = true;
+      } catch (e) { console.error('Migrasi foto SJ gagal untuk', so.no, e); }
+    }
+  }
+  if (changed) {
+    needsCloudFlushAfterLoad = true;
+    console.log('✅ Foto Surat Jalan dipindah ke dokumen terpisah, dokumen utama jadi lebih ringan.');
+  }
+}
+
+function soPhotoCount(so) {
+  return so.photoCount != null ? so.photoCount : (so.photos || []).length;
+}
+
+async function openSOPhotoModal(id) {
   const data = loadData();
   const so = data.sos.find(s => s.id === id);
   if (!so) return;
   currentSOPhotoId = id;
   document.getElementById('soPhotoModalNo').textContent = so.no;
-  renderSOPhotoGrid();
   document.getElementById('soPhotoModal').classList.add('open');
+  document.getElementById('soPhotoGrid').innerHTML = '<div style="padding:16px;color:var(--text-muted)">⏳ Memuat foto...</div>';
+  await ensureSOPhotos(id);
+  if (currentSOPhotoId === id) renderSOPhotoGrid();
 }
 
 function renderSOPhotoGrid() {
@@ -4132,7 +4349,7 @@ function renderSOPhotoGrid() {
   const so = data.sos.find(s => s.id === currentSOPhotoId);
   const grid = document.getElementById('soPhotoGrid');
   if (!so) { grid.innerHTML = ''; return; }
-  const photos = so.photos || [];
+  const photos = sjPhotoCache[String(so.id)] || [];
 
   const thumbs = photos.map((p, idx) => `
     <div class="photo-thumb" onclick="openLightbox('${p.url}')">
@@ -4174,13 +4391,22 @@ function handleSOPhotoCapture(event) {
         reader.readAsDataURL(blob);
       });
     })
-    .then(base64url => {
+    .then(async base64url => {
       const data = loadData();
       const so = data.sos.find(s => s.id === currentSOPhotoId);
       if (!so) return;
-      if (!so.photos) so.photos = [];
-      // Simpan base64 sebagai "url" — bisa langsung dipakai di <img src="...">
-      so.photos.push({ url: base64url, path: null });
+      const photos = (await ensureSOPhotos(so.id)).slice();
+      photos.push({ url: base64url, path: null });
+      // 1 dokumen Firestore maksimal 1MB — tolak kalau total foto SJ ini kebanyakan
+      const totalLen = photos.reduce((a, p) => a + (p.url || '').length, 0);
+      if (totalLen > 900000) {
+        showToast('⚠️ Total foto SJ ini sudah terlalu besar (mendekati 1MB). Hapus foto lama dulu.');
+        renderSOPhotoGrid();
+        return;
+      }
+      await saveSOPhotos(so.id, photos);
+      so.photoCount = photos.length;
+      delete so.photos;
       saveData(data);
       renderSOPhotoGrid();
       renderSOs();
@@ -4216,13 +4442,17 @@ function compressImage(file, maxWidth, quality) {
   });
 }
 
-function deleteSOPhoto(idx) {
+async function deleteSOPhoto(idx) {
   if (!confirm('Hapus foto ini?')) return;
   const data = loadData();
   const so = data.sos.find(s => s.id === currentSOPhotoId);
-  if (!so || !so.photos || !so.photos[idx]) return;
-  // ✅ Foto disimpan di Firestore (base64), cukup hapus dari array saja
-  so.photos.splice(idx, 1);
+  if (!so) return;
+  const photos = (await ensureSOPhotos(so.id)).slice();
+  if (!photos[idx]) return;
+  photos.splice(idx, 1);
+  await saveSOPhotos(so.id, photos);
+  so.photoCount = photos.length;
+  delete so.photos;
   saveData(data);
   renderSOPhotoGrid();
   renderSOs();
@@ -4313,7 +4543,8 @@ function populateSORefSelect(selectedId) {
   select.innerHTML = `<option value="">-- Tanpa referensi Surat Jalan --</option>` +
     data.sos.map(so => {
       const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
-      return `<option value="${so.id}" ${so.id == selectedId ? 'selected' : ''}>${so.no} - ${customer}${so.status === 'Selesai' ? ' ✓' : ''}</option>`;
+      const alreadyInv = getInvoicesOfSO(so, data).filter(i => i.id !== editingInvId).length > 0;
+      return `<option value="${so.id}" ${so.id == selectedId ? 'selected' : ''}>${so.no} - ${customer}${alreadyInv ? ' ✓ (sudah ada Inv)' : ' (belum Inv)'}</option>`;
     }).join('');
 }
 
@@ -4516,9 +4747,9 @@ function saveInv() {
     showToast('Invoice berhasil disimpan!');
   }
 
-  // Tandai semua Surat Jalan yang digabung ke invoice ini sebagai Selesai
+  // Status pengiriman SJ TIDAK diubah di sini lagi (status kirim & status invoice sekarang terpisah;
+  // status invoice SJ dihitung otomatis dari daftar invoice). PO terkait tetap ditandai Selesai.
   soRefs.forEach(soRef => {
-    soRef.status = 'Selesai';
     if (soRef.poId) {
       const poRef = data.pos.find(p => p.id == soRef.poId);
       if (poRef) poRef.status = 'Selesai';
@@ -6449,10 +6680,10 @@ function switchPage(pageName) {
   // Reset dropdown filter Status/Customer juga tiap pindah halaman, sama kayak kotak pencarian
   tableFilters = {
     po: { status: '', customer: '' },
-    so: { status: '', customer: '' },
+    so: { status: '', customer: '', invoice: '' },
     inv: { status: '', customer: '' }
   };
-  ['po-filter-status', 'so-filter-status', 'inv-filter-status'].forEach(id => {
+  ['po-filter-status', 'so-filter-status', 'so-filter-invoice', 'inv-filter-status'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -6482,7 +6713,15 @@ function startRealtimeSync() {
       if (!snap.exists) return;
 
       const cloud = snap.data() || {};
-      appDataCache = Object.assign(emptyData(), cloud);
+      const cloudFull = Object.assign(emptyData(), cloud);
+      if (hasUnsavedLocalChanges()) {
+        // Ada perubahan lokal yang belum sempat naik ke cloud -> GABUNGKAN, jangan ditimpa.
+        // (Ini penyebab klasik Surat Jalan "hilang": data baru ketimpa snapshot cloud yang lebih lama.)
+        appDataCache = mergeAppData(cloudBase, appDataCache, cloudFull);
+      } else {
+        appDataCache = cloudFull;
+      }
+      cloudBase = cloneData(cloudFull);
 
       if (isAnyModalOpen()) {
         // Tunda render sampai modal ditutup, biar form yang lagi diisi ga keganggu
