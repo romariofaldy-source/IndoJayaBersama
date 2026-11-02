@@ -183,12 +183,18 @@
   .sj-sub { display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
   .sj-cust { font-weight: 600; }
   .sj-items-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 24px; padding: 0 9px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
-  /* Toggle status kirim: klik sisi yang mau dipilih */
-  .sj-seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
-  .sj-seg button { border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 5px 11px; border-radius: 999px; white-space: nowrap; transition: background .15s, color .15s, box-shadow .15s; }
-  .sj-seg button:hover { color: var(--text); }
-  .sj-seg button.on-send { background: var(--blue-light); color: #1a76c9; box-shadow: 0 1px 3px rgba(26,118,201,.25); cursor: default; }
-  .sj-seg button.on-done { background: var(--green-light); color: #17925f; box-shadow: 0 1px 3px rgba(23,146,95,.25); cursor: default; }
+  /* Toggle status kirim: 1 tombol, klik = ganti status di tempat */
+  .sj-toggle { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; padding: 5px 6px 5px 12px; border-radius: 999px; white-space: nowrap; min-width: 158px; justify-content: space-between; transition: background .25s, color .25s, border-color .25s, box-shadow .25s; -webkit-tap-highlight-color: transparent; }
+  .sj-toggle .sj-t-label { display: inline-flex; align-items: center; gap: 6px; }
+  .sj-toggle .sj-t-ico { display: inline-block; transition: transform .3s; }
+  .sj-toggle .sj-t-track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: currentColor; opacity: .9; flex-shrink: 0; transition: background .25s; }
+  .sj-toggle .sj-t-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .25s cubic-bezier(.4,0,.2,1); }
+  .sj-toggle.is-send { background: var(--blue-light); color: #1a76c9; border-color: rgba(26,118,201,.3); }
+  .sj-toggle.is-done { background: var(--green-light); color: #17925f; border-color: rgba(23,146,95,.3); }
+  .sj-toggle.is-done .sj-t-knob { transform: translateX(14px); }
+  .sj-toggle.is-done .sj-t-ico { transform: scale(1.15); }
+  .sj-toggle:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .sj-toggle:active { transform: scale(.97); }
   .sj-inv { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
   .sj-inv::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   .sj-inv.done { background: var(--green-light); color: #17925f; }
@@ -416,8 +422,8 @@
   body.dark-mode .badge-green { color: #7be3ab; }
   body.dark-mode .badge-amber { color: #ffcb70; }
   body.dark-mode .badge-blue { color: #9bd4f5; }
-  body.dark-mode .sj-seg button.on-send { color: #9bd4f5; }
-  body.dark-mode .sj-seg button.on-done, body.dark-mode .sj-inv.done { color: #7be3ab; }
+  body.dark-mode .sj-toggle.is-send { color: #9bd4f5; }
+  body.dark-mode .sj-toggle.is-done, body.dark-mode .sj-inv.done { color: #7be3ab; }
   body.dark-mode .sj-inv.todo { color: #ffcb70; }
   body.dark-mode #so-table tr:hover td { background: rgba(255,255,255,0.03); }
   body.dark-mode .btn-success { color: #7be3ab; border-color: rgba(94,198,138,0.35); }
@@ -749,13 +755,13 @@
       <div class="table-card" style="margin-bottom: 20px;">
         <div class="modal-body" style="padding: 16px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Status</label>
-              <select id="so-filter-status" onchange="applySOFilter()">
-                <option value="">-- Semua Status --</option>
-                <option value="Dikirim">🚚 Sedang Dikirim</option>
-                <option value="Selesai">✅ Selesai Dikirim</option>
-              </select>
+            <div class="form-group" style="flex:1; min-width:300px;">
+              <label>Periode Tanggal</label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="date" id="so-filter-from" onchange="applySOFilter()" title="Dari tanggal">
+                <span style="color:var(--text-muted); font-size:13px;">s/d</span>
+                <input type="date" id="so-filter-to" onchange="applySOFilter()" title="Sampai tanggal">
+              </div>
             </div>
             <div class="form-group" style="flex:1; min-width:200px;">
               <label>Status Invoice</label>
@@ -1812,7 +1818,7 @@ let tableSearchQuery = { po: '', so: '', inv: '' };
 // pencarian teks di atas, dan digabung (AND) dengan pencarian teks itu di render masing2.
 let tableFilters = {
   po: { status: '', customer: '' },
-  so: { status: '', customer: '', invoice: '' },
+  so: { from: '', to: '', customer: '', invoice: '' },
   inv: { status: '', customer: '' }
 };
 let pdfDocData = {};
@@ -4185,27 +4191,43 @@ function getInvoicesOfSO(so, data) {
   });
 }
 
-function setSOStatus(id, status) {
+// Klik 1 tombol = status kirim berubah LANGSUNG di posisi yang sama (tanpa render ulang tabel / reload).
+// Warna, ikon, teks, dan posisi knob ikut berubah sesuai status terbaru.
+function toggleSOStatus(id, btn) {
   const data = loadData();
   const so = data.sos.find(s => s.id === id);
-  if (!so || so.status === status) return;
-  so.status = status;
+  if (!so) return;
+  const nowDone = so.status !== 'Selesai';
+  so.status = nowDone ? 'Selesai' : 'Dikirim';
   saveData(data);
-  renderSOs();
-  showToast(status === 'Selesai' ? '✅ SJ ditandai Selesai Dikirim' : '🚚 SJ dikembalikan ke Sedang Dikirim');
+  if (btn) {
+    btn.classList.toggle('is-done', nowDone);
+    btn.classList.toggle('is-send', !nowDone);
+    btn.querySelector('.sj-t-ico').textContent = nowDone ? '✅' : '🚚';
+    btn.querySelector('.sj-t-text').textContent = nowDone ? 'Selesai Dikirim' : 'Sedang Dikirim';
+  } else {
+    renderSOs();
+  }
+  showToast(nowDone ? '✅ SJ ' + so.no + ' → Selesai Dikirim' : '🚚 SJ ' + so.no + ' → Sedang Dikirim');
 }
 
 function applySOFilter() {
   tableFilters.so.invoice = document.getElementById('so-filter-invoice').value;
-  tableFilters.so.status = document.getElementById('so-filter-status').value;
+  const fromEl = document.getElementById('so-filter-from');
+  const toEl = document.getElementById('so-filter-to');
+  // Kalau tanggal "dari" lebih besar dari "sampai", tukar otomatis biar hasil gak kosong
+  if (fromEl.value && toEl.value && fromEl.value > toEl.value) {
+    const tmp = fromEl.value; fromEl.value = toEl.value; toEl.value = tmp;
+  }
+  tableFilters.so.from = fromEl.value;
+  tableFilters.so.to = toEl.value;
   tableFilters.so.customer = document.getElementById('so-filter-customer').value;
   renderSOs();
 }
 
 function resetSOFilter() {
-  tableFilters.so = { status: '', customer: '', invoice: '' };
-  const statusEl = document.getElementById('so-filter-status');
-  if (statusEl) statusEl.value = '';
+  tableFilters.so = { from: '', to: '', customer: '', invoice: '' };
+  ['so-filter-from', 'so-filter-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const invEl = document.getElementById('so-filter-invoice');
   if (invEl) invEl.value = '';
   renderSOs();
@@ -4219,7 +4241,8 @@ function renderSOs() {
   populateFilterCustomerSelect('so-filter-customer', tableFilters.so.customer);
 
   const filtered = data.sos.filter(so => {
-    if (tableFilters.so.status && so.status !== tableFilters.so.status) return false;
+    if (tableFilters.so.from && (so.date || '') < tableFilters.so.from) return false;
+    if (tableFilters.so.to && (so.date || '') > tableFilters.so.to) return false;
     if (tableFilters.so.customer && String(so.customer) !== String(tableFilters.so.customer)) return false;
     if (tableFilters.so.invoice) {
       const hasInv = getInvoicesOfSO(so, data).length > 0;
@@ -4233,7 +4256,7 @@ function renderSOs() {
     return haystack.includes(q);
   }).slice().reverse(); // SJ terbaru di paling atas
 
-  const hasActiveFilter = !!(tableFilters.so.status || tableFilters.so.customer || tableFilters.so.invoice);
+  const hasActiveFilter = !!(tableFilters.so.from || tableFilters.so.to || tableFilters.so.customer || tableFilters.so.invoice);
   if (filtered.length === 0 && data.sos.length > 0) {
     const msg = q ? `Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Surat Jalan yang cocok dengan filter yang dipilih.' : 'Tidak ada Surat Jalan.');
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
@@ -4248,10 +4271,10 @@ function renderSOs() {
       ? `<span class="sj-inv done">Sudah dibuat Inv</span><span class="sj-sub">${linkedInvs.map(i => i.no).join(', ')}</span>`
       : `<span class="sj-inv todo">Belum dibuat Inv</span>`;
     const photoCount = soPhotoCount(so);
-    const statusToggle = `<div class="sj-seg" role="group" aria-label="Status pengiriman">
-        <button class="${!isDone ? 'on-send' : ''}" ${!isDone ? '' : `onclick="setSOStatus(${so.id}, 'Dikirim')"`} title="Tandai sedang dikirim">🚚 Sedang Dikirim</button>
-        <button class="${isDone ? 'on-done' : ''}" ${isDone ? '' : `onclick="setSOStatus(${so.id}, 'Selesai')"`} title="Tandai selesai dikirim">✅ Selesai Dikirim</button>
-      </div>`;
+    const statusToggle = `<button class="sj-toggle ${isDone ? 'is-done' : 'is-send'}" data-so="${so.id}" onclick="toggleSOStatus(${so.id}, this)" title="Klik untuk ganti status pengiriman">
+        <span class="sj-t-label"><span class="sj-t-ico">${isDone ? '✅' : '🚚'}</span><span class="sj-t-text">${isDone ? 'Selesai Dikirim' : 'Sedang Dikirim'}</span></span>
+        <span class="sj-t-track"><span class="sj-t-knob"></span></span>
+      </button>`;
 
     return `<tr>
       <td><span class="sj-no">${so.no}</span></td>
@@ -6705,10 +6728,10 @@ function switchPage(pageName) {
   // Reset dropdown filter Status/Customer juga tiap pindah halaman, sama kayak kotak pencarian
   tableFilters = {
     po: { status: '', customer: '' },
-    so: { status: '', customer: '', invoice: '' },
+    so: { from: '', to: '', customer: '', invoice: '' },
     inv: { status: '', customer: '' }
   };
-  ['po-filter-status', 'so-filter-status', 'so-filter-invoice', 'inv-filter-status'].forEach(id => {
+  ['po-filter-status', 'so-filter-from', 'so-filter-to', 'so-filter-invoice', 'inv-filter-status'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
