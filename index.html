@@ -176,6 +176,28 @@
   .badge-amber { background: var(--amber-light); color: #a06000; }
   .badge-blue { background: var(--blue-light); color: #1a76c9; }
   .action-btns { display: flex; gap: 6px; }
+  /* ===== Tabel Surat Jalan (tampilan modern) ===== */
+  #so-table td { vertical-align: middle; padding-top: 14px; padding-bottom: 14px; }
+  #so-table tr:hover td { background: var(--purple-light); }
+  .sj-no { font-weight: 700; font-size: 13.5px; letter-spacing: .2px; }
+  .sj-sub { display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  .sj-cust { font-weight: 600; }
+  .sj-items-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 24px; padding: 0 9px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
+  /* Toggle status kirim: klik sisi yang mau dipilih */
+  .sj-seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+  .sj-seg button { border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 5px 11px; border-radius: 999px; white-space: nowrap; transition: background .15s, color .15s, box-shadow .15s; }
+  .sj-seg button:hover { color: var(--text); }
+  .sj-seg button.on-send { background: var(--blue-light); color: #1a76c9; box-shadow: 0 1px 3px rgba(26,118,201,.25); cursor: default; }
+  .sj-seg button.on-done { background: var(--green-light); color: #17925f; box-shadow: 0 1px 3px rgba(23,146,95,.25); cursor: default; }
+  .sj-inv { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  .sj-inv::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .sj-inv.done { background: var(--green-light); color: #17925f; }
+  .sj-inv.todo { background: var(--amber-light); color: #a06000; }
+  .sj-icon-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; min-width: 32px; padding: 0 9px; border-radius: 9px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .sj-icon-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
+  .sj-icon-btn.danger:hover { border-color: #e0455a; color: #e0455a; background: var(--coral-light); }
+  .sj-icon-btn.has-photo { color: #17925f; border-color: rgba(23,146,95,.35); }
+  .sj-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
 
   /* Modal */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,18,40,0.5); backdrop-filter: blur(5px); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
@@ -394,6 +416,10 @@
   body.dark-mode .badge-green { color: #7be3ab; }
   body.dark-mode .badge-amber { color: #ffcb70; }
   body.dark-mode .badge-blue { color: #9bd4f5; }
+  body.dark-mode .sj-seg button.on-send { color: #9bd4f5; }
+  body.dark-mode .sj-seg button.on-done, body.dark-mode .sj-inv.done { color: #7be3ab; }
+  body.dark-mode .sj-inv.todo { color: #ffcb70; }
+  body.dark-mode #so-table tr:hover td { background: rgba(255,255,255,0.03); }
   body.dark-mode .btn-success { color: #7be3ab; border-color: rgba(94,198,138,0.35); }
   body.dark-mode .btn-pdf { color: #ffcb70; border-color: rgba(245,166,35,0.35); }
   body.dark-mode .btn-danger { border-color: rgba(255,123,110,0.35); }
@@ -735,8 +761,8 @@
               <label>Status Invoice</label>
               <select id="so-filter-invoice" onchange="applySOFilter()">
                 <option value="">-- Semua --</option>
-                <option value="belum">⏳ Belum dibuatkan Invoice</option>
-                <option value="sudah">🧾 Sudah dibuatkan Invoice</option>
+                <option value="belum">⏳ Belum dibuat Inv</option>
+                <option value="sudah">🧾 Sudah dibuat Inv</option>
               </select>
             </div>
             <div class="form-group" style="flex:1; min-width:200px;">
@@ -4159,14 +4185,14 @@ function getInvoicesOfSO(so, data) {
   });
 }
 
-function toggleSOStatus(id) {
+function setSOStatus(id, status) {
   const data = loadData();
   const so = data.sos.find(s => s.id === id);
-  if (!so) return;
-  so.status = so.status === 'Selesai' ? 'Dikirim' : 'Selesai';
+  if (!so || so.status === status) return;
+  so.status = status;
   saveData(data);
   renderSOs();
-  showToast(so.status === 'Selesai' ? '✅ SJ ditandai Selesai Dikirim' : '🚚 SJ dikembalikan ke Sedang Dikirim');
+  showToast(status === 'Selesai' ? '✅ SJ ditandai Selesai Dikirim' : '🚚 SJ dikembalikan ke Sedang Dikirim');
 }
 
 function applySOFilter() {
@@ -4216,32 +4242,31 @@ function renderSOs() {
   
   tbody.innerHTML = filtered.map(so => {
     const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
-    const badgeClass = so.status === 'Selesai' ? 'badge-green' : 'badge-blue';
-    const statusLabel = so.status === 'Selesai' ? '✅ Selesai Dikirim' : '🚚 Sedang Dikirim';
+    const isDone = so.status === 'Selesai';
     const linkedInvs = getInvoicesOfSO(so, data);
     const invBadge = linkedInvs.length > 0
-      ? `<span class="badge badge-green">🧾 Sudah Inv</span><br><span style="font-size:11px;color:var(--text-muted)">${linkedInvs.map(i => i.no).join(', ')}</span>`
-      : `<span class="badge badge-amber">⏳ Belum Inv</span>`;
+      ? `<span class="sj-inv done">Sudah dibuat Inv</span><span class="sj-sub">${linkedInvs.map(i => i.no).join(', ')}</span>`
+      : `<span class="sj-inv todo">Belum dibuat Inv</span>`;
     const photoCount = soPhotoCount(so);
-    const photoBadge = photoCount > 0
-      ? `<span class="photo-badge has-photos">📷 ${photoCount}</span>`
-      : `<span class="photo-badge">📷 0</span>`;
-    
+    const statusToggle = `<div class="sj-seg" role="group" aria-label="Status pengiriman">
+        <button class="${!isDone ? 'on-send' : ''}" ${!isDone ? '' : `onclick="setSOStatus(${so.id}, 'Dikirim')"`} title="Tandai sedang dikirim">🚚 Sedang Dikirim</button>
+        <button class="${isDone ? 'on-done' : ''}" ${isDone ? '' : `onclick="setSOStatus(${so.id}, 'Selesai')"`} title="Tandai selesai dikirim">✅ Selesai Dikirim</button>
+      </div>`;
+
     return `<tr>
-      <td><strong>${so.no}</strong></td>
-      <td>${customer}</td>
-      <td>${so.poNo || '-'}</td>
+      <td><span class="sj-no">${so.no}</span></td>
+      <td><span class="sj-cust">${customer}</span></td>
+      <td>${so.poNo || '<span class="sj-sub">-</span>'}</td>
       <td>${fmtDate(so.date)}</td>
-      <td>${so.items.length}</td>
-      <td><span class="badge ${badgeClass}">${statusLabel}</span><br>${photoBadge}</td>
+      <td><span class="sj-items-chip">${so.items.length}</span></td>
+      <td>${statusToggle}</td>
       <td>${invBadge}</td>
-      <td class="action-btns">
-        <button class="btn btn-sm btn-outline" onclick="toggleSOStatus(${so.id})" title="Ganti status pengiriman">${so.status === 'Selesai' ? '↩️ Dikirim' : '✅ Selesai'}</button>
-        <button class="btn btn-sm btn-pdf" onclick="previewSOFromList(${so.id})">Lihat</button>
-        <button class="btn btn-sm btn-outline" onclick="openSOPhotoModal(${so.id})">📷</button>
-        <button class="btn btn-sm btn-outline" onclick="editSO(${so.id})">✏️ Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteSO(${so.id})">Hapus</button>
-      </td>
+      <td><div class="sj-actions">
+        <button class="sj-icon-btn" onclick="previewSOFromList(${so.id})" title="Lihat / cetak">👁 Lihat</button>
+        <button class="sj-icon-btn ${photoCount > 0 ? 'has-photo' : ''}" onclick="openSOPhotoModal(${so.id})" title="Foto bukti antar">📷 ${photoCount}</button>
+        <button class="sj-icon-btn" onclick="editSO(${so.id})" title="Edit">✏️</button>
+        <button class="sj-icon-btn danger" onclick="deleteSO(${so.id})" title="Hapus">🗑</button>
+      </div></td>
     </tr>`;
   }).join('');
 }
