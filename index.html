@@ -874,11 +874,12 @@
               <th>Ref PO</th>
               <th>Tanggal</th>
               <th>Total Item</th>
+              <th>Nominal</th>
               <th>Status Kirim</th>
               <th>Status Invoice</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><button type="button" class="cf-input rp-trigger" id="cf-so-dateRng" data-t="so" data-k="date" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><button type="button" class="cf-input rp-trigger" id="cf-so-dateRng" data-t="so" data-k="date" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><input class="cf-input" id="cf-so-total" type="text" placeholder="Cari nominal..." oninput="setColFilter('so','total',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="so-table"></tbody>
           <tfoot id="so-foot"></tfoot>
@@ -3039,6 +3040,7 @@ function cfSetFoot(tbl, labelSpan, label, sumHtml, restSpan, shown, total) {
     info.textContent = n > 0 ? `🔎 ${n} filter kolom aktif · menampilkan ${shown} dari ${total}` : '💡 Ketik / pilih di kotak bawah nama kolom untuk memfilter';
   }
 }
+function soTotalOf(so) { return (so.items || []).reduce((a, i) => a + ((i.qty || 0) * (i.price || 0)), 0); }
 function poTotalOf(po) { return (po.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (po.discount || 0); }
 function invTotalOf(inv) { return (inv.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (inv.discount || 0); }
 
@@ -3559,7 +3561,7 @@ function exportTableToExcel(type) {
     data.sos.forEach(so => {
       const customer = data.customers.find(c => c.id == so.customer)?.name || 'Unknown';
       so.items.forEach(item => rows.push({
-        'No Surat Jalan': so.no, 'Ref PO': so.poNo || '-', 'Customer': customer, 'Tanggal': so.date, 'Status Kirim': so.status === 'Selesai' ? 'Selesai Dikirim' : 'Sedang Dikirim', 'Status Invoice': getInvoicesOfSO(so, data).length ? 'Sudah Inv (' + getInvoicesOfSO(so, data).map(i => i.no).join(', ') + ')' : 'Belum Inv', 'Driver': so.driver || '',
+        'No Surat Jalan': so.no, 'Ref PO': so.poNo || '-', 'Customer': customer, 'Tanggal': so.date, 'Total Nominal': soTotalOf(so), 'Status Kirim': so.status === 'Selesai' ? 'Selesai Dikirim' : 'Sedang Dikirim', 'Status Invoice': getInvoicesOfSO(so, data).length ? 'Sudah Inv (' + getInvoicesOfSO(so, data).map(i => i.no).join(', ') + ')' : 'Belum Inv', 'Driver': so.driver || '',
         'Nama Barang': item.name, 'Qty': item.qty, 'UOM': item.uom || 'pcs', 'Harga': item.price, 'Subtotal': item.qty * item.price
       }));
     });
@@ -4523,6 +4525,7 @@ function renderSOs() {
     if (f.poNo && !cfHas(so.poNo, f.poNo)) return false;
     if (!cfInRange(so.date, f.dateFrom, f.dateTo)) return false;
     if (f.items !== undefined && f.items !== '' && (so.items || []).length !== Number(f.items)) return false;
+    if (f.total && !(cfDigits(f.total) && String(Math.round(soTotalOf(so))).includes(cfDigits(f.total)))) return false;
     if (f.status && so.status !== f.status) return false;
     if (f.invoice) {
       const hasInv = getInvoicesOfSO(so, data).length > 0;
@@ -4537,10 +4540,10 @@ function renderSOs() {
   }).slice().reverse(); // SJ terbaru di paling atas
 
   const hasActiveFilter = !!(tableFilters.so.from || tableFilters.so.to || cfActive('so'));
-  cfSetFoot('so', 4, 'Total', `<td><span class="sj-items-chip">${filtered.reduce((a, so) => a + (so.items || []).length, 0)}</span></td>`, 3, filtered.length, data.sos.length);
+  cfSetFoot('so', 4, 'Total', `<td><span class="sj-items-chip">${filtered.reduce((a, so) => a + (so.items || []).length, 0)}</span></td><td style="white-space:nowrap">${rupiah(filtered.reduce((a, so) => a + soTotalOf(so), 0))}</td>`, 3, filtered.length, data.sos.length);
   if (filtered.length === 0 && data.sos.length > 0) {
     const msg = q ? `Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Surat Jalan yang cocok dengan filter yang dipilih.' : 'Tidak ada Surat Jalan.');
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
     return;
   }
   
@@ -4563,6 +4566,7 @@ function renderSOs() {
       <td>${so.poNo || '<span class="sj-sub">-</span>'}</td>
       <td>${fmtDate(so.date)}</td>
       <td><span class="sj-items-chip">${so.items.length}</span></td>
+      <td style="font-weight:700; white-space:nowrap;">${rupiah(soTotalOf(so))}</td>
       <td>${statusToggle}</td>
       <td>${invBadge}</td>
       <td><div class="sj-actions">
