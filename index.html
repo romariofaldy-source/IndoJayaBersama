@@ -508,6 +508,27 @@
   .cf-range { display: flex; flex-direction: column; gap: 4px; }
   .cf-range label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; }
   .cf-range label .cf-input { flex: 1; min-width: 118px; }
+
+  /* ===== Kalender rentang tanggal ===== */
+  .rp-trigger { min-width: 150px; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rp-pop { display: none; position: fixed; z-index: 3000; width: 312px; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 20px 55px rgba(20,20,60,.25); padding: 16px 16px 12px; user-select: none; }
+  .rp-pop.open { display: block; animation: modalPop .22s var(--ease-spring); }
+  .rp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .rp-title { font-weight: 800; font-size: 16px; }
+  .rp-nav { border: 0; background: transparent; color: #ff7b6e; font-size: 24px; line-height: 1; font-weight: 800; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; transition: background .15s; }
+  .rp-nav:hover { background: rgba(255,123,110,.14); }
+  .rp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 0; text-align: center; }
+  .rp-wd { font-size: 11px; font-weight: 800; color: var(--text-muted); padding: 6px 0 8px; letter-spacing: .4px; }
+  .rp-wd.we { color: #ff7b6e; }
+  .rp-day { width: 36px; height: 36px; margin: 0 auto; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text); border: 0; background: transparent; transition: background .12s, color .12s, transform .12s; }
+  .rp-day.out { color: var(--text-muted); opacity: .5; }
+  .rp-day.we { color: #ff7b6e; }
+  .rp-day.in { background: rgba(255,123,110,.17); }
+  .rp-day:hover:not(.edge) { background: rgba(255,123,110,.3); }
+  .rp-day.edge { background: #ff7b6e; color: #fff; font-weight: 800; opacity: 1; box-shadow: 0 3px 10px rgba(255,123,110,.45); }
+  .rp-day.today:not(.edge) { box-shadow: inset 0 0 0 1.5px var(--purple); }
+  .rp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+  .rp-clear { border: 0; background: none; color: #e0455a; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -772,7 +793,7 @@
               <th>Status</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-po-no" type="text" placeholder="Cari No PO..." oninput="setColFilter('po','no',this)" ></th><th><select class="cf-input" id="cf-po-customer" onchange="setColFilter('po','customer',this)"><option value="">Semua Outlet</option></select></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-po-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('po','dateFrom',this)" onchange="setColFilter('po','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-po-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('po','dateTo',this)" onchange="setColFilter('po','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-po-total" type="text" placeholder="Cari total..." oninput="setColFilter('po','total',this)" ></th><th><select class="cf-input" id="cf-po-status" onchange="setColFilter('po','status',this)"><option value="">Semua</option><option value="Draft">Draft</option><option value="Diproses">Diproses</option><option value="Selesai">Selesai</option></select></th><th><button class="cf-reset-mini" onclick="resetPOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-po-no" type="text" placeholder="Cari No PO..." oninput="setColFilter('po','no',this)" ></th><th><select class="cf-input" id="cf-po-customer" onchange="setColFilter('po','customer',this)"><option value="">Semua Outlet</option></select></th><th><button type="button" class="cf-input rp-trigger" id="cf-po-dateRng" data-t="po" data-k="date" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><input class="cf-input" id="cf-po-total" type="text" placeholder="Cari total..." oninput="setColFilter('po','total',this)" ></th><th><select class="cf-input" id="cf-po-status" onchange="setColFilter('po','status',this)"><option value="">Semua</option><option value="Draft">Draft</option><option value="Diproses">Diproses</option><option value="Selesai">Selesai</option></select></th><th><button class="cf-reset-mini" onclick="resetPOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="po-table"></tbody>
           <tfoot id="po-foot"></tfoot>
@@ -836,7 +857,7 @@
               <th>Status Invoice</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-so-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('so','dateFrom',this)" onchange="setColFilter('so','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-so-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('so','dateTo',this)" onchange="setColFilter('so','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><button type="button" class="cf-input rp-trigger" id="cf-so-dateRng" data-t="so" data-k="date" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="so-table"></tbody>
           <tfoot id="so-foot"></tfoot>
@@ -879,7 +900,7 @@
               <th>Terkirim</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','dateFrom',this)" onchange="setColFilter('inv','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','dateTo',this)" onchange="setColFilter('inv','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-inv-no" type="text" placeholder="Cari No Invoice..." oninput="setColFilter('inv','no',this)" ></th><th><select class="cf-input" id="cf-inv-customer" onchange="setColFilter('inv','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-inv-soNo" type="text" placeholder="Cari Ref SJ..." oninput="setColFilter('inv','soNo',this)" ></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-shipFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','shipFrom',this)" onchange="setColFilter('inv','shipFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-shipTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','shipTo',this)" onchange="setColFilter('inv','shipTo',this)"></label></div></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-dueFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','dueFrom',this)" onchange="setColFilter('inv','dueFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-dueTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','dueTo',this)" onchange="setColFilter('inv','dueTo',this)"></label></div></th><th><select class="cf-input" id="cf-inv-status" onchange="setColFilter('inv','status',this)"><option value="">Semua</option><option value="BelumLunas">Belum Lunas</option><option value="Lunas Sebagian">Lunas Sebagian</option><option value="Lunas">Lunas</option><option value="JatuhTempo">⚠️ Jatuh Tempo</option></select></th><th><input class="cf-input" id="cf-inv-total" type="text" placeholder="Cari total..." oninput="setColFilter('inv','total',this)" ></th><th><select class="cf-input" id="cf-inv-sent" onchange="setColFilter('inv','sent',this)"><option value="">Semua</option><option value="sudah">✅ Terkirim</option><option value="belum">📮 Belum Kirim</option></select></th><th><button class="cf-reset-mini" onclick="resetInvFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><button type="button" class="cf-input rp-trigger" id="cf-inv-dateRng" data-t="inv" data-k="date" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><input class="cf-input" id="cf-inv-no" type="text" placeholder="Cari No Invoice..." oninput="setColFilter('inv','no',this)" ></th><th><select class="cf-input" id="cf-inv-customer" onchange="setColFilter('inv','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-inv-soNo" type="text" placeholder="Cari Ref SJ..." oninput="setColFilter('inv','soNo',this)" ></th><th><button type="button" class="cf-input rp-trigger" id="cf-inv-shipRng" data-t="inv" data-k="ship" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><button type="button" class="cf-input rp-trigger" id="cf-inv-dueRng" data-t="inv" data-k="due" onclick="openRangePicker(this)" title="Klik untuk pilih rentang tanggal">📅 Pilih tanggal</button></th><th><select class="cf-input" id="cf-inv-status" onchange="setColFilter('inv','status',this)"><option value="">Semua</option><option value="BelumLunas">Belum Lunas</option><option value="Lunas Sebagian">Lunas Sebagian</option><option value="Lunas">Lunas</option><option value="JatuhTempo">⚠️ Jatuh Tempo</option></select></th><th><input class="cf-input" id="cf-inv-total" type="text" placeholder="Cari total..." oninput="setColFilter('inv','total',this)" ></th><th><select class="cf-input" id="cf-inv-sent" onchange="setColFilter('inv','sent',this)"><option value="">Semua</option><option value="sudah">✅ Terkirim</option><option value="belum">📮 Belum Kirim</option></select></th><th><button class="cf-reset-mini" onclick="resetInvFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="inv-table"></tbody>
           <tfoot id="inv-foot"></tfoot>
@@ -2961,9 +2982,11 @@ function setColFilter(tbl, key, el) {
 function clearColFilters(tbl) {
   colFilters[tbl] = {};
   document.querySelectorAll(`[id^="cf-${tbl}-"]`).forEach(el => {
-    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    if (el.tagName === 'SELECT') el.selectedIndex = 0; else if (el.tagName === 'INPUT') el.value = '';
     el.classList.remove('cf-on');
   });
+  cfRefreshRangeLabels(tbl);
+  closeRangePicker();
 }
 
 // Dropdown customer: isinya nama UNIK yang benar-benar ada di data tabel itu (dinamis, bukan ketikan manual)
@@ -2997,6 +3020,130 @@ function cfSetFoot(tbl, labelSpan, label, sumHtml, restSpan, shown, total) {
 }
 function poTotalOf(po) { return (po.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (po.discount || 0); }
 function invTotalOf(inv) { return (inv.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (inv.discount || 0); }
+
+
+// ===== KALENDER RENTANG TANGGAL (klik tanggal awal, lalu tanggal akhir) =====
+const RP_MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const RP_WD = ['SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB', 'MIN'];
+let rp = null; // state picker yang sedang terbuka
+
+function rpPad(n) { return String(n).padStart(2, '0'); }
+function rpKey(y, m, d) { return `${y}-${rpPad(m + 1)}-${rpPad(d)}`; }
+function rpFmt(k, withYear = true) { const [y, m, d] = k.split('-').map(Number); return `${d} ${RP_MONTHS[m - 1].slice(0, 3)}${withYear ? ' ' + y : ''}`; }
+function rpLabel(from, to) {
+  if (!from || !to) return '📅 Pilih tanggal';
+  if (from === to) return '📅 ' + rpFmt(from);
+  const sameYear = from.slice(0, 4) === to.slice(0, 4);
+  return '📅 ' + rpFmt(from, !sameYear) + ' – ' + rpFmt(to);
+}
+function rpTodayKey() { const n = new Date(); return rpKey(n.getFullYear(), n.getMonth(), n.getDate()); }
+
+function cfRefreshRangeLabels(tbl) {
+  document.querySelectorAll(`.rp-trigger[data-t="${tbl}"]`).forEach(b => {
+    const f = colFilters[tbl], k = b.dataset.k;
+    const from = f[k + 'From'] || '', to = f[k + 'To'] || '';
+    b.textContent = rpLabel(from, to);
+    b.classList.toggle('cf-on', !!(from && to));
+  });
+}
+
+// Set rentang tanggal sebuah kolom lalu render ulang tabel
+function setColRange(tbl, key, from, to) {
+  if (from && to && from > to) { const t = from; from = to; to = t; }
+  colFilters[tbl][key + 'From'] = from || '';
+  colFilters[tbl][key + 'To'] = to || '';
+  cfRefreshRangeLabels(tbl);
+  ({ po: renderPOs, so: renderSOs, inv: renderInvs })[tbl]();
+}
+
+function rpEl() {
+  let el = document.getElementById('rpPop');
+  if (!el) { el = document.createElement('div'); el.id = 'rpPop'; el.className = 'rp-pop'; document.body.appendChild(el); }
+  return el;
+}
+
+function openRangePicker(btn) {
+  const tbl = btn.dataset.t, key = btn.dataset.k, f = colFilters[tbl];
+  const from = f[key + 'From'] || '', to = f[key + 'To'] || '';
+  if (rp && rp.btn === btn) { closeRangePicker(); return; } // klik lagi = tutup
+  const [y, m] = (from || rpTodayKey()).split('-').map(Number);
+  rp = { tbl, key, btn, y, m: m - 1, start: from || null, end: to || null, pending: false, hover: null };
+  rpRender();
+  const pop = rpEl();
+  pop.classList.add('open');
+  const r = btn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(Math.max(8, r.left), window.innerWidth - pw - 8);
+  let top = r.bottom + 6;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+}
+
+function closeRangePicker() {
+  const pop = document.getElementById('rpPop');
+  if (pop) pop.classList.remove('open');
+  rp = null;
+}
+
+function rpRender() {
+  if (!rp) return;
+  const pop = rpEl();
+  const first = new Date(rp.y, rp.m, 1);
+  const lead = (first.getDay() + 6) % 7; // Senin = 0
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(rp.y, rp.m, 1 - lead + i);
+    cells.push({ key: rpKey(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), out: d.getMonth() !== rp.m, we: i % 7 >= 5 });
+  }
+  pop.innerHTML = `
+    <div class="rp-head">
+      <button type="button" class="rp-nav" onclick="rpNav(-1)" aria-label="Bulan sebelumnya">‹</button>
+      <div class="rp-title">${RP_MONTHS[rp.m]} ${rp.y}</div>
+      <button type="button" class="rp-nav" onclick="rpNav(1)" aria-label="Bulan berikutnya">›</button>
+    </div>
+    <div class="rp-grid">
+      ${RP_WD.map((w, i) => `<div class="rp-wd ${i >= 5 ? 'we' : ''}">${w}</div>`).join('')}
+      ${cells.map(c => `<button type="button" class="rp-day ${c.out ? 'out' : ''} ${c.we ? 'we' : ''} ${c.key === rpTodayKey() ? 'today' : ''}" data-d="${c.key}" onclick="rpPick('${c.key}')" onmouseenter="rpHover('${c.key}')">${c.day}</button>`).join('')}
+    </div>
+    <div class="rp-foot"><span id="rpInfo"></span><button type="button" class="rp-clear" onclick="rpClear()">✕ Hapus</button></div>`;
+  rpPaint();
+}
+
+// Update warna saja (tanpa bangun ulang DOM) biar hover mulus
+function rpPaint() {
+  if (!rp) return;
+  const a = rp.start, b = rp.end || (rp.pending ? rp.hover : null);
+  const lo = a && b ? (a < b ? a : b) : a, hi = a && b ? (a < b ? b : a) : a;
+  document.querySelectorAll('#rpPop .rp-day').forEach(el => {
+    const d = el.dataset.d;
+    el.classList.toggle('edge', !!lo && (d === lo || d === hi));
+    el.classList.toggle('in', !!lo && d > lo && d < hi);
+  });
+  const info = document.getElementById('rpInfo');
+  if (info) info.textContent = rp.pending ? 'Pilih tanggal akhir…' : (rp.start && rp.end ? (rp.start === rp.end ? rpFmt(rp.start) : rpFmt(rp.start) + ' → ' + rpFmt(rp.end)) : 'Pilih tanggal awal');
+}
+
+function rpHover(d) { if (rp && rp.pending) { rp.hover = d; rpPaint(); } }
+function rpNav(delta) { if (!rp) return; rp.m += delta; if (rp.m < 0) { rp.m = 11; rp.y--; } if (rp.m > 11) { rp.m = 0; rp.y++; } rpRender(); }
+function rpPick(d) {
+  if (!rp) return;
+  if (!rp.pending) { rp.start = d; rp.end = null; rp.hover = d; rp.pending = true; rpPaint(); return; }
+  let a = rp.start, b = d; if (a > b) { const t = a; a = b; b = t; }
+  const { tbl, key } = rp;
+  closeRangePicker();
+  setColRange(tbl, key, a, b);
+}
+function rpClear() { if (!rp) return; const { tbl, key } = rp; closeRangePicker(); setColRange(tbl, key, '', ''); }
+
+document.addEventListener('mousedown', e => {
+  if (!rp) return;
+  const pop = document.getElementById('rpPop');
+  if (pop && pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.rp-trigger')) return; // ditangani toggle di openRangePicker
+  closeRangePicker();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && rp) closeRangePicker(); });
+window.addEventListener('resize', () => { if (rp) closeRangePicker(); });
+window.addEventListener('scroll', e => { const pop = document.getElementById('rpPop'); if (rp && !(pop && pop.contains(e.target))) closeRangePicker(); }, true);
 
 function populateFilterCustomerSelect(selectId, selectedId) {
   const data = loadData();
