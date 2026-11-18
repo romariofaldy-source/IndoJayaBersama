@@ -18,7 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js" onerror="this.onerror=null;document.write('<script src=\'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-storage-compat.js\'><\/script>')"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #EEF0FA;
@@ -550,9 +550,144 @@
   #po th:last-child, #po td:last-child, #so th:last-child, #so td:last-child, #inv th:last-child, #inv td:last-child { position: sticky; right: 0; z-index: 2; background: var(--card-bg); box-shadow: -8px 0 12px -10px rgba(20,20,60,.25); }
   #po .col-filter-row th:last-child, #so .col-filter-row th:last-child, #inv .col-filter-row th:last-child { background: var(--bg); }
   @media (min-width: 769px) { #po .action-btns, #inv .action-btns { flex-wrap: wrap; } }
+
+  /* =====================================================================
+     TEMA V22 — hijau mint, sidebar melayang, kartu putih membulat, animasi halus
+     Semua aturan di bawah diawali body.theme-v22 → hapus class itu (Pengaturan → Klasik) = tampilan lama.
+     ===================================================================== */
+  .v22-style-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+  .v22-style-switch button { padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .v22-style-switch button:hover { border-color: var(--purple); }
+  .v22-style-switch button.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+  .v22-hero { display: none; }
+  #v22Splash { display: none; }
+  .nav-indicator { display: none; }
+
+  body.theme-v22 {
+    --bg: #E3EFE8; --text: #0F2421; --text-muted: #5F7D76; --border: #D3E5DB;
+    --glass-bg: rgba(255,255,255,0.78); --glass-border: rgba(255,255,255,0.92);
+    --radius: 22px;
+    --shadow: 0 8px 28px rgba(18,70,58,0.09);
+    --shadow-lg: 0 24px 50px -12px rgba(18,70,58,0.30);
+    --peach: #F4A988; --peach-light: #FCE5D8; --mint: #8FE8C8; --forest: #0E2E29;
+    background:
+      radial-gradient(1000px 640px at 4% -8%, #BCE6D3 0%, transparent 62%),
+      radial-gradient(900px 600px at 102% 2%, #EAF2E1 0%, transparent 60%),
+      radial-gradient(900px 560px at 100% 108%, #F7E8D8 0%, transparent 58%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  body.theme-v22.dark-mode {
+    --bg: #09130F; --card-bg: #12211C; --glass-bg: rgba(18,33,28,0.70); --text: #EAF5F0; --text-muted: #8DB0A4; --border: #213630;
+    --shadow: 0 6px 24px rgba(0,0,0,0.45); --shadow-lg: 0 24px 50px rgba(0,0,0,0.6);
+    background:
+      radial-gradient(1000px 640px at 4% -8%, rgba(38,120,94,0.30), transparent 62%),
+      radial-gradient(900px 560px at 100% 108%, rgba(244,169,136,0.08), transparent 58%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  body.theme-v22::before { opacity: 0.28; }
+
+  /* Sidebar melayang gelap (hijau) dengan indikator mint yang meluncur */
+  body.theme-v22 .sidebar {
+    background: linear-gradient(176deg, color-mix(in srgb, var(--purple) 90%, black) 0%, color-mix(in srgb, var(--purple) 58%, black) 100%);
+    border: 1px solid rgba(143,232,200,0.14);
+    box-shadow: 0 26px 50px -14px rgba(6,26,22,0.6);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  body.theme-v22.dark-mode .sidebar { background: linear-gradient(176deg, color-mix(in srgb, var(--purple) 50%, black), color-mix(in srgb, var(--purple) 28%, black)); }
+  body.theme-v22 .sidebar::before { background: radial-gradient(circle, rgba(143,232,200,0.30), transparent 70%); }
+  body.theme-v22 .logo { background: none; color: #EAF8F2; -webkit-text-fill-color: #EAF8F2; }
+  body.theme-v22 .logo-img { background: rgba(255,255,255,0.12); box-shadow: 0 0 0 2px rgba(143,232,200,0.35); }
+  body.theme-v22 .nav-section { color: rgba(214,240,230,0.5); }
+  body.theme-v22 .nav-item { color: rgba(222,243,235,0.78); }
+  body.theme-v22 .nav-item:hover { background: rgba(255,255,255,0.09); color: #fff; }
+  body.theme-v22 .nav-item.active { background: linear-gradient(120deg, #9BF0D2, #6FD9B3); color: #08251F; font-weight: 700; box-shadow: 0 0 0 4px rgba(143,232,200,0.16), 0 12px 26px -8px rgba(143,232,200,0.6); }
+  body.theme-v22 .nav-item.active::after { display: none; }
+  body.theme-v22 .sidebar.has-indicator .nav-item.active { background: transparent; box-shadow: none; }
+  body.theme-v22 .sidebar.has-indicator .nav-indicator { display: block; }
+  .nav-indicator { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 13px; pointer-events: none; background: linear-gradient(120deg, #9BF0D2, #6FD9B3); box-shadow: 0 0 0 4px rgba(143,232,200,0.16), 0 12px 26px -8px rgba(143,232,200,0.65); }
+  .nav-indicator.ready { transition: transform .5s cubic-bezier(.2,.9,.3,1.12), height .3s ease, width .3s ease, left .3s ease; }
+  body.theme-v22 .user-card { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
+  body.theme-v22 .user-card:hover { background: rgba(255,255,255,0.14); }
+  body.theme-v22 .user-info .name { color: #fff; }
+  body.theme-v22 .user-info .role { color: rgba(214,240,230,0.62); }
+  body.theme-v22 .avatar { background: linear-gradient(135deg, #9BF0D2, #55C9A1); color: #08251F; box-shadow: 0 4px 12px rgba(143,232,200,0.4); }
+  @media (min-width: 769px) {
+    body.theme-v22 .sidebar { top: 14px; left: 14px; height: calc(100vh - 28px); border-radius: 28px; padding: 20px 0; }
+    body.theme-v22 .main { margin-left: calc(var(--sidebar-w) + 28px); }
+  }
+
+  /* Topbar, tombol, kartu, modal */
+  body.theme-v22 .topbar { background: rgba(255,255,255,0.38); border-bottom-color: rgba(255,255,255,0.6); box-shadow: none; }
+  body.theme-v22.dark-mode .topbar { background: rgba(10,22,18,0.5); }
+  body.theme-v22 .page-title { font-weight: 700; }
+  body.theme-v22 .btn { border-radius: 999px; }
+  body.theme-v22 .btn-sm { border-radius: 999px; }
+  body.theme-v22 .btn-icon { border-radius: 14px; }
+  body.theme-v22 .btn-primary { background: linear-gradient(120deg, var(--grad-1), var(--grad-3)); }
+  .btn-peach { background: var(--peach, #F4A988); color: #2B1409; box-shadow: 0 10px 22px -8px rgba(244,169,136,0.8); }
+  .btn-peach:hover { filter: brightness(1.05); transform: translateY(-2px); }
+  .btn-ghost-light { background: rgba(255,255,255,0.1); color: #EAF8F2; border: 1px solid rgba(255,255,255,0.2); }
+  .btn-ghost-light:hover { background: rgba(255,255,255,0.18); transform: translateY(-2px); }
+  body.theme-v22 .stat-card, body.theme-v22 .table-card { border-radius: 22px; background: rgba(255,255,255,0.86); border-color: rgba(255,255,255,0.95); }
+  body.theme-v22.dark-mode .stat-card, body.theme-v22.dark-mode .table-card { background: var(--glass-bg); border-color: rgba(255,255,255,0.06); }
+  body.theme-v22 .stat-card.purple, body.theme-v22 .stat-card.green { background: linear-gradient(160deg, #D9F2E7, rgba(255,255,255,0.86) 72%); }
+  body.theme-v22 .stat-card.coral, body.theme-v22 .stat-card.amber { background: linear-gradient(160deg, #FCE6DA, rgba(255,255,255,0.86) 72%); }
+  body.theme-v22.dark-mode .stat-card.purple, body.theme-v22.dark-mode .stat-card.green { background: linear-gradient(160deg, rgba(60,170,130,0.20), var(--glass-bg) 72%); }
+  body.theme-v22.dark-mode .stat-card.coral, body.theme-v22.dark-mode .stat-card.amber { background: linear-gradient(160deg, rgba(244,169,136,0.16), var(--glass-bg) 72%); }
+  body.theme-v22 .modal-overlay { background: rgba(6,26,22,0.52); }
+  body.theme-v22 .modal { border-radius: 26px; }
+  body.theme-v22 .btn-icon, body.theme-v22 .search-box, body.theme-v22 .btn-outline { background: rgba(255,255,255,0.7); }
+  body.theme-v22.dark-mode .btn-icon, body.theme-v22.dark-mode .search-box, body.theme-v22.dark-mode .btn-outline { background: rgba(255,255,255,0.05); }
+
+  /* Hero banner dashboard */
+  body.theme-v22 .v22-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap;
+    position: relative; overflow: hidden; border-radius: 26px; padding: 28px 32px; margin-bottom: 22px; color: #EAF8F2;
+    background: radial-gradient(520px 260px at 92% -25%, rgba(143,232,200,0.26), transparent 62%), radial-gradient(380px 220px at 0% 120%, rgba(244,169,136,0.16), transparent 60%), linear-gradient(135deg, #0E2E29 0%, #123A33 58%, #0B2520 100%);
+    box-shadow: var(--shadow-lg);
+  }
+  .v22-hero h2 { font-size: clamp(22px, 2.8vw, 31px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.18; max-width: 640px; }
+  .v22-hero h2 em { font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 400; font-size: 1.14em; color: #F2C9B1; }
+  .v22-hero h2 .w { display: inline-block; animation: v22Word .75s var(--ease-out) backwards; animation-delay: calc(var(--i) * 70ms + 180ms); }
+  .v22-hero p { font-size: 13px; color: rgba(214,240,230,0.72); margin-top: 10px; }
+  .v22-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .v22-chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.13); font-size: 12px; font-weight: 600; color: #EAF8F2; animation: v22Word .6s var(--ease-out) backwards; animation-delay: .55s; }
+  .v22-chip b { color: #8FE8C8; font-weight: 800; font-size: 13px; }
+  .v22-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Animasi */
+  @property --r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+  @keyframes v22Word { from { opacity: 0; filter: blur(9px); transform: translateY(10px); } to { opacity: 1; filter: blur(0); transform: none; } }
+  @keyframes v22PageIn { from { opacity: 0; filter: blur(10px); transform: translateY(14px) scale(0.985); } to { opacity: 1; filter: blur(0); transform: none; } }
+  body.theme-v22 .page.active { animation: v22PageIn .55s var(--ease-out); }
+
+  /* Intro: layar hijau gelap → logo muncul → terbuka melingkar dari pojok kiri atas */
+  #v22Splash.show { display: flex; position: fixed; inset: 0; z-index: 10000; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 55%, #14463C 0%, #0A2621 45%, #04100E 100%);
+    -webkit-mask-image: radial-gradient(circle at 6% 8%, transparent var(--r), #000 calc(var(--r) + 2px));
+    mask-image: radial-gradient(circle at 6% 8%, transparent var(--r), #000 calc(var(--r) + 2px));
+    animation: v22Reveal 1.15s cubic-bezier(.7,0,.2,1) 1.25s forwards; }
+  @keyframes v22Reveal { 0% { --r: 0px; opacity: 1; } 99% { --r: 170vmax; opacity: 1; visibility: visible; } 100% { --r: 170vmax; opacity: 0; visibility: hidden; } }
+  .v22s-core { text-align: center; color: #EAF8F2; animation: v22CoreOut .35s ease 1.2s forwards; }
+  @keyframes v22CoreOut { to { opacity: 0; transform: scale(.94); } }
+  .v22s-mark { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; letter-spacing: -2px; color: #8FE8C8; border: 1.5px solid rgba(143,232,200,0.45); box-shadow: 0 0 0 10px rgba(143,232,200,0.06), 0 0 60px rgba(143,232,200,0.25); animation: v22Word .8s var(--ease-out) .15s backwards; }
+  .v22s-name { font-size: 15px; font-weight: 700; letter-spacing: .5px; animation: v22Word .8s var(--ease-out) .4s backwards; }
+  .v22s-sub { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 14px; color: #F2C9B1; margin-top: 2px; animation: v22Word .8s var(--ease-out) .6s backwards; }
+
+  /* Rapikan kolom Aksi: tombol disusun 2 kolom (lebih pendek), nomor SJ tidak terpotong */
+  .sj-no { white-space: nowrap; }
+  @media (min-width: 769px) {
+    #so .sj-actions, #po .action-btns, #inv .action-btns { display: grid; grid-template-columns: repeat(2, max-content); gap: 5px; justify-content: start; }
+    #po .action-btns .btn, #inv .action-btns .btn { justify-content: center; }
+  }
 </style>
 </head>
-<body>
+<body class="theme-v22">
+<script>try{if(localStorage.getItem('themeStyle')==='classic')document.body.classList.remove('theme-v22');}catch(e){}</script>
+<div id="v22Splash" aria-hidden="true"><div class="v22s-core"><div class="v22s-mark">//</div><div class="v22s-name">Indo Jaya Bersama</div><div class="v22s-sub">ERP</div></div></div>
 
 <div class="sync-indicator" id="syncIndicator">🔄 Data diperbarui otomatis</div>
 
@@ -612,6 +747,17 @@
   <div class="content">
     <!-- DASHBOARD PAGE -->
     <div id="dashboard" class="page active">
+      <div class="v22-hero" id="v22Hero">
+        <div class="v22-hero-text">
+          <h2 id="v22HeroTitle">Selamat datang, bisnis makin <em>rapi</em> hari ini</h2>
+          <p id="v22HeroSub"></p>
+          <div class="v22-chips" id="v22HeroChips"></div>
+        </div>
+        <div class="v22-hero-actions">
+          <button type="button" class="btn btn-peach" onclick="switchPageDirect('so')">Surat Jalan →</button>
+          <button type="button" class="btn btn-ghost-light" onclick="switchPageDirect('inv')">Invoice</button>
+        </div>
+      </div>
       <div class="table-card" style="margin-bottom: 20px;">
         <div class="modal-body" style="padding: 16px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
@@ -975,8 +1121,16 @@
             </div>
           </div>
           <div class="form-group full" style="margin-top: 22px;">
+            <label>Gaya Tampilan</label>
+            <div class="v22-style-switch">
+              <button type="button" data-themestyle="v22" onclick="applyThemeStyle('v22')">✨ V22 · Hijau Mint + Animasi</button>
+              <button type="button" data-themestyle="classic" onclick="applyThemeStyle('classic')">Klasik</button>
+            </div>
+          </div>
+          <div class="form-group full" style="margin-top: 22px;">
             <label>Warna Aksen</label>
             <div class="theme-swatches" id="themeSwatches">
+              <div class="theme-swatch" data-accent="forest" style="background:#17493F" onclick="setAccentColor('forest')" title="Hijau Tua (Tema V22)"><span class="check">✓</span></div>
               <div class="theme-swatch" data-accent="purple" style="background:#7C6FF7" onclick="setAccentColor('purple')" title="Ungu"><span class="check">✓</span></div>
               <div class="theme-swatch" data-accent="coral" style="background:#FF7B6E" onclick="setAccentColor('coral')" title="Coral"><span class="check">✓</span></div>
               <div class="theme-swatch" data-accent="blue" style="background:#6BB5E8" onclick="setAccentColor('blue')" title="Biru"><span class="check">✓</span></div>
@@ -2404,6 +2558,7 @@ function isDuplicateNo(list, no, excludeId) {
 
 // ===== THEME (DARK MODE & ACCENT COLOR) =====
 const accentPresets = {
+  forest: { color: '#17493F', light: '#DCF0E6' },
   purple: { color: '#7C6FF7', light: '#EAE8FE' },
   coral:  { color: '#FF7B6E', light: '#FFF0EE' },
   blue:   { color: '#6BB5E8', light: '#EBF5FF' },
@@ -2413,6 +2568,14 @@ const accentPresets = {
   graphite: { color: '#3A3A46', light: '#E7E7EC' },
   maroon:   { color: '#7A3B4C', light: '#F5E6EA' }
 };
+
+// Gaya tampilan: 'v22' (hijau mint + animasi) atau 'classic' (tampilan sebelumnya). Cuma ganti class CSS, fungsi app tidak berubah.
+function applyThemeStyle(style) {
+  document.body.classList.toggle('theme-v22', style !== 'classic');
+  try { localStorage.setItem('themeStyle', style === 'classic' ? 'classic' : 'v22'); } catch (e) {}
+  document.querySelectorAll('[data-themestyle]').forEach(el => el.classList.toggle('active', el.dataset.themestyle === (style === 'classic' ? 'classic' : 'v22')));
+  if (typeof v22UpdateNavIndicator === 'function') setTimeout(v22UpdateNavIndicator, 30);
+}
 
 function applyDarkMode(isDark) {
   document.body.classList.toggle('dark-mode', isDark);
@@ -2442,12 +2605,13 @@ function setAccentColor(key) {
 function initTheme() {
   // Paksa reset ke default baru (Navy) sekali saja, supaya pilihan lama yang kepencet
   // saat coba-coba warna sebelumnya tidak nyangkut terus.
-  if (localStorage.getItem('themeDefaultVersion') !== '2') {
-    localStorage.setItem('themeAccent', 'navy');
-    localStorage.setItem('themeDefaultVersion', '2');
+  if (localStorage.getItem('themeDefaultVersion') !== '3') {
+    localStorage.setItem('themeAccent', 'forest'); // tema V22 (hijau mint) jadi default baru
+    localStorage.setItem('themeDefaultVersion', '3');
   }
   applyDarkMode(localStorage.getItem('themeMode') === 'dark');
-  setAccentColor(localStorage.getItem('themeAccent') || 'navy');
+  setAccentColor(localStorage.getItem('themeAccent') || 'forest');
+  applyThemeStyle(localStorage.getItem('themeStyle') || 'v22');
 }
 
 // ===== SETTINGS & LOGO =====
@@ -7197,6 +7361,87 @@ function runSearch() {
   }
 }
 
+
+
+// ===== TEMA V22: intro, indikator menu, hero dashboard (murni tampilan, tidak mengubah fungsi app) =====
+(function v22Intro() {
+  try {
+    if (!document.body.classList.contains('theme-v22')) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (sessionStorage.getItem('v22Splash') === '1') return; // cukup sekali per sesi tab
+    sessionStorage.setItem('v22Splash', '1');
+    const sp = document.getElementById('v22Splash');
+    if (!sp) return;
+    sp.classList.add('show');
+    sp.addEventListener('click', () => { sp.style.display = 'none'; }); // klik = lewati
+    setTimeout(() => { sp.style.display = 'none'; }, 3200);              // sabuk pengaman
+  } catch (e) {}
+})();
+
+function v22UpdateNavIndicator() {
+  try {
+    const sb = document.getElementById('sidebar');
+    if (!sb) return;
+    const on = document.body.classList.contains('theme-v22');
+    let ind = document.getElementById('navIndicator');
+    const act = sb.querySelector('.nav-item.active');
+    if (!on || !act || act.offsetHeight === 0) { sb.classList.remove('has-indicator'); return; }
+    if (!ind) { ind = document.createElement('div'); ind.id = 'navIndicator'; ind.className = 'nav-indicator'; sb.insertBefore(ind, sb.firstChild); }
+    ind.style.width = act.offsetWidth + 'px';
+    ind.style.height = act.offsetHeight + 'px';
+    ind.style.left = act.offsetLeft + 'px';
+    ind.style.transform = `translateY(${act.offsetTop}px)`;
+    sb.classList.add('has-indicator');
+    if (!ind.classList.contains('ready')) requestAnimationFrame(() => requestAnimationFrame(() => ind.classList.add('ready')));
+  } catch (e) { const sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('has-indicator'); }
+}
+(function v22NavInit() {
+  try {
+    const sb = document.getElementById('sidebar');
+    if (!sb) return;
+    let raf = 0;
+    const sched = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(v22UpdateNavIndicator); };
+    new MutationObserver(sched).observe(sb, { attributes: true, attributeFilter: ['class'], subtree: true });
+    window.addEventListener('resize', sched);
+    window.addEventListener('load', () => setTimeout(v22UpdateNavIndicator, 120));
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(sched);
+    setTimeout(v22UpdateNavIndicator, 200);
+  } catch (e) {}
+})();
+
+function v22UpdateHero() {
+  try {
+    const hero = document.getElementById('v22Hero');
+    if (!hero) return;
+    const data = loadData();
+    const now = new Date(), h = now.getHours();
+    const greet = h < 11 ? 'pagi' : h < 15 ? 'siang' : h < 19 ? 'sore' : 'malam';
+    const title = document.getElementById('v22HeroTitle');
+    const text = `Selamat ${greet}, bisnis makin <em>rapi</em> dan terkendali`;
+    if (title && title.dataset.t !== text) {
+      title.dataset.t = text;
+      let i = 0;
+      title.innerHTML = text.split(/(<em>.*?<\/em>)/).map(part => part.startsWith('<em>')
+        ? `<em class="w" style="--i:${i++}">${part.slice(4, -5)}</em>`
+        : part.split(' ').filter(Boolean).map(w => `<span class="w" style="--i:${i++}">${w}</span>`).join(' ')).join(' ');
+    }
+    const sub = document.getElementById('v22HeroSub');
+    if (sub) sub.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const sjBelumInv = (data.sos || []).filter(so => getInvoicesOfSO(so, data).length === 0).length;
+    const invBelumLunas = (data.invs || []).filter(inv => inv.status !== 'Lunas').length;
+    const chips = document.getElementById('v22HeroChips');
+    if (chips) chips.innerHTML = `<span class="v22-chip"><b>${sjBelumInv}</b> SJ belum dibuat Inv</span><span class="v22-chip"><b>${invBelumLunas}</b> Invoice belum lunas</span>`;
+  } catch (e) {}
+}
+// Bungkus renderDashboard: jalankan fungsi aslinya apa adanya, lalu perbarui hero
+(function () {
+  const original = renderDashboard;
+  renderDashboard = function () {
+    const r = original.apply(this, arguments);
+    v22UpdateHero();
+    return r;
+  };
+})();
 
 // ===== Animasi halaman =====
 function animateCountUp(root) {
