@@ -5329,20 +5329,35 @@ function onTransferCustomerChange() {
   updateTransferSummary();
 }
 
+// Tanggal KIRIM barang untuk sebuah invoice (diambil dari Surat Jalan yang direferensikan).
+// Invoice gabungan beberapa SJ susulan bisa punya lebih dari satu tanggal kirim.
+function getInvShipDates(inv, data) {
+  const dates = getInvSORecords(inv, data).map(so => so.date).filter(Boolean);
+  if (!dates.length && inv.deliveryDate) dates.push(inv.deliveryDate);
+  return [...new Set(dates)].sort();
+}
+
 function renderTransferInvCheckboxes(invs) {
   const box = document.getElementById('transfer-inv-checkboxes');
   if (!invs || invs.length === 0) {
     box.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Tidak ada invoice yang belum lunas untuk customer ini</span>';
     return;
   }
+  // Urutkan dari tanggal kirim terlama -> terbaru, biar gampang dicocokkan dengan laporan transfer
+  const dataAll = loadData();
+  const shipOf = inv => getInvShipDates(inv, dataAll)[0] || inv.date || '';
+  invs = invs.slice().sort((a, b) => shipOf(a).localeCompare(shipOf(b)));
   box.innerHTML = invs.map(inv => {
+    const ship = getInvShipDates(inv, dataAll);
+    // Kalau SJ-nya gak ketemu, baru jatuh ke tanggal invoice (dikasih tanda biar jelas)
+    const dateLabel = ship.length ? `Kirim ${ship.map(fmtDate).join(', ')}` : `${fmtDate(inv.date)} (tgl invoice)`;
     const sisa = invoiceOutstanding(inv);
     const partialTag = inv.status === 'Lunas Sebagian'
       ? ` <span style="background:#FFF3E0;color:#E65100;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px">🟡 SEBAGIAN</span>`
       : '';
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0">
       <input type="checkbox" value="${inv.id}" data-sisa="${sisa}" onchange="updateTransferSummary()" style="width:15px;height:15px;accent-color:var(--purple);flex-shrink:0">
-      <span><strong>${inv.no}</strong> — ${fmtDate(inv.date)} — Sisa: ${rupiah(sisa)}${partialTag}</span>
+      <span><strong>${inv.no}</strong> — ${dateLabel} — Sisa: ${rupiah(sisa)}${partialTag}</span>
     </label>`;
   }).join('');
 }
