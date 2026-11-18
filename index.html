@@ -504,6 +504,10 @@
   .cf-info.on { color: var(--purple); font-weight: 600; }
   tfoot .cf-foot td { background: var(--purple-light); font-weight: 700; padding: 13px 14px; border-top: 2px solid var(--purple); font-size: 13px; }
   tfoot .cf-foot .cf-sub { font-weight: 500; font-size: 11.5px; color: var(--text-muted); margin-left: 6px; }
+
+  .cf-range { display: flex; flex-direction: column; gap: 4px; }
+  .cf-range label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; }
+  .cf-range label .cf-input { flex: 1; min-width: 118px; }
 </style>
 </head>
 <body>
@@ -768,7 +772,7 @@
               <th>Status</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-po-no" type="text" placeholder="Cari No PO..." oninput="setColFilter('po','no',this)" ></th><th><select class="cf-input" id="cf-po-customer" onchange="setColFilter('po','customer',this)"><option value="">Semua Outlet</option></select></th><th><input class="cf-input" id="cf-po-date" type="date" oninput="setColFilter('po','date',this)" onchange="setColFilter('po','date',this)"></th><th><input class="cf-input" id="cf-po-total" type="text" placeholder="Cari total..." oninput="setColFilter('po','total',this)" ></th><th><select class="cf-input" id="cf-po-status" onchange="setColFilter('po','status',this)"><option value="">Semua</option><option value="Draft">Draft</option><option value="Diproses">Diproses</option><option value="Selesai">Selesai</option></select></th><th><button class="cf-reset-mini" onclick="resetPOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-po-no" type="text" placeholder="Cari No PO..." oninput="setColFilter('po','no',this)" ></th><th><select class="cf-input" id="cf-po-customer" onchange="setColFilter('po','customer',this)"><option value="">Semua Outlet</option></select></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-po-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('po','dateFrom',this)" onchange="setColFilter('po','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-po-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('po','dateTo',this)" onchange="setColFilter('po','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-po-total" type="text" placeholder="Cari total..." oninput="setColFilter('po','total',this)" ></th><th><select class="cf-input" id="cf-po-status" onchange="setColFilter('po','status',this)"><option value="">Semua</option><option value="Draft">Draft</option><option value="Diproses">Diproses</option><option value="Selesai">Selesai</option></select></th><th><button class="cf-reset-mini" onclick="resetPOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="po-table"></tbody>
           <tfoot id="po-foot"></tfoot>
@@ -811,14 +815,6 @@
       <div class="table-card" style="margin-bottom: 20px;">
         <div class="modal-body" style="padding: 14px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
-            <div class="form-group" style="flex:1; min-width:300px;">
-              <label>Periode Tanggal</label>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <input type="date" id="so-filter-from" onchange="applySOFilter()" title="Dari tanggal">
-                <span style="color:var(--text-muted); font-size:13px;">s/d</span>
-                <input type="date" id="so-filter-to" onchange="applySOFilter()" title="Sampai tanggal">
-              </div>
-            </div>
             <div class="form-group" style="flex:0 0 auto;">
               <button class="btn btn-outline" onclick="resetSOFilter()">✕ Reset Filter</button>
             </div>
@@ -840,7 +836,7 @@
               <th>Status Invoice</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><input class="cf-input" id="cf-so-date" type="date" oninput="setColFilter('so','date',this)" onchange="setColFilter('so','date',this)"></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-so-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('so','dateFrom',this)" onchange="setColFilter('so','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-so-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('so','dateTo',this)" onchange="setColFilter('so','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="so-table"></tbody>
           <tfoot id="so-foot"></tfoot>
@@ -860,14 +856,6 @@
       <div class="table-card" style="margin-bottom: 20px;">
         <div class="modal-body" style="padding: 14px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
-            <div class="form-group" style="flex:1; min-width:300px;">
-              <label>Periode Tanggal</label>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <input type="date" id="inv-filter-from" onchange="applyInvFilter()" title="Dari tanggal">
-                <span style="color:var(--text-muted); font-size:13px;">s/d</span>
-                <input type="date" id="inv-filter-to" onchange="applyInvFilter()" title="Sampai tanggal">
-              </div>
-            </div>
             <div class="form-group" style="flex:0 0 auto;">
               <button class="btn btn-outline" onclick="resetInvFilter()">✕ Reset Filter</button>
             </div>
@@ -891,7 +879,7 @@
               <th>Terkirim</th>
               <th>Aksi</th>
             </tr>
-<tr class="col-filter-row"><th><input class="cf-input" id="cf-inv-date" type="date" oninput="setColFilter('inv','date',this)" onchange="setColFilter('inv','date',this)"></th><th><input class="cf-input" id="cf-inv-no" type="text" placeholder="Cari No Invoice..." oninput="setColFilter('inv','no',this)" ></th><th><select class="cf-input" id="cf-inv-customer" onchange="setColFilter('inv','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-inv-soNo" type="text" placeholder="Cari Ref SJ..." oninput="setColFilter('inv','soNo',this)" ></th><th><input class="cf-input" id="cf-inv-ship" type="date" oninput="setColFilter('inv','ship',this)" onchange="setColFilter('inv','ship',this)"></th><th><input class="cf-input" id="cf-inv-due" type="date" oninput="setColFilter('inv','due',this)" onchange="setColFilter('inv','due',this)"></th><th><select class="cf-input" id="cf-inv-status" onchange="setColFilter('inv','status',this)"><option value="">Semua</option><option value="BelumLunas">Belum Lunas</option><option value="Lunas Sebagian">Lunas Sebagian</option><option value="Lunas">Lunas</option><option value="JatuhTempo">⚠️ Jatuh Tempo</option></select></th><th><input class="cf-input" id="cf-inv-total" type="text" placeholder="Cari total..." oninput="setColFilter('inv','total',this)" ></th><th><select class="cf-input" id="cf-inv-sent" onchange="setColFilter('inv','sent',this)"><option value="">Semua</option><option value="sudah">✅ Terkirim</option><option value="belum">📮 Belum Kirim</option></select></th><th><button class="cf-reset-mini" onclick="resetInvFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
+<tr class="col-filter-row"><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-dateFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','dateFrom',this)" onchange="setColFilter('inv','dateFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-dateTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','dateTo',this)" onchange="setColFilter('inv','dateTo',this)"></label></div></th><th><input class="cf-input" id="cf-inv-no" type="text" placeholder="Cari No Invoice..." oninput="setColFilter('inv','no',this)" ></th><th><select class="cf-input" id="cf-inv-customer" onchange="setColFilter('inv','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-inv-soNo" type="text" placeholder="Cari Ref SJ..." oninput="setColFilter('inv','soNo',this)" ></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-shipFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','shipFrom',this)" onchange="setColFilter('inv','shipFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-shipTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','shipTo',this)" onchange="setColFilter('inv','shipTo',this)"></label></div></th><th><div class="cf-range"><label>Dari<input class="cf-input" id="cf-inv-dueFrom" type="date" title="Dari tanggal" oninput="setColFilter('inv','dueFrom',this)" onchange="setColFilter('inv','dueFrom',this)"></label><label>Sampai<input class="cf-input" id="cf-inv-dueTo" type="date" title="Sampai tanggal" oninput="setColFilter('inv','dueTo',this)" onchange="setColFilter('inv','dueTo',this)"></label></div></th><th><select class="cf-input" id="cf-inv-status" onchange="setColFilter('inv','status',this)"><option value="">Semua</option><option value="BelumLunas">Belum Lunas</option><option value="Lunas Sebagian">Lunas Sebagian</option><option value="Lunas">Lunas</option><option value="JatuhTempo">⚠️ Jatuh Tempo</option></select></th><th><input class="cf-input" id="cf-inv-total" type="text" placeholder="Cari total..." oninput="setColFilter('inv','total',this)" ></th><th><select class="cf-input" id="cf-inv-sent" onchange="setColFilter('inv','sent',this)"><option value="">Semua</option><option value="sudah">✅ Terkirim</option><option value="belum">📮 Belum Kirim</option></select></th><th><button class="cf-reset-mini" onclick="resetInvFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="inv-table"></tbody>
           <tfoot id="inv-foot"></tfoot>
@@ -2939,12 +2927,34 @@ function cfCustName(data, id) { return (data.customers.find(c => c.id == id) || 
 function cfHas(v, q) { return String(v == null ? '' : v).toLowerCase().includes(String(q).toLowerCase().trim()); }
 function cfDigits(v) { return String(v == null ? '' : v).replace(/\D/g, ''); }
 function cfActive(tbl) { return Object.values(colFilters[tbl]).some(v => v !== '' && v != null); }
-function cfActiveCount(tbl) { return Object.values(colFilters[tbl]).filter(v => v !== '' && v != null).length; }
+function cfActiveCount(tbl) {
+  const bases = new Set();
+  Object.keys(colFilters[tbl]).forEach(k => { const v = colFilters[tbl][k]; if (v !== '' && v != null) bases.add(k.replace(/(From|To)$/, '')); });
+  return bases.size;
+}
+// Cek tanggal masuk rentang [from, to]; salah satu boleh kosong
+function cfInRange(val, from, to) {
+  if (!from && !to) return true;
+  const v = val || '';
+  if (!v) return false;
+  if (from && v < from) return false;
+  if (to && v > to) return false;
+  return true;
+}
 
 function setColFilter(tbl, key, el) {
   const val = (el.value || '').trim();
   colFilters[tbl][key] = val;
   el.classList.toggle('cf-on', val !== '');
+  // Kalau "Dari" lebih besar dari "Sampai", tukar otomatis biar hasil gak kosong
+  const m = key.match(/^(.*)(From|To)$/);
+  if (m) {
+    const fe = document.getElementById(`cf-${tbl}-${m[1]}From`), te = document.getElementById(`cf-${tbl}-${m[1]}To`);
+    if (fe && te && fe.value && te.value && fe.value > te.value) {
+      const tmp = fe.value; fe.value = te.value; te.value = tmp;
+      colFilters[tbl][m[1] + 'From'] = fe.value; colFilters[tbl][m[1] + 'To'] = te.value;
+    }
+  }
   ({ po: renderPOs, so: renderSOs, inv: renderInvs })[tbl]();
 }
 
@@ -3798,7 +3808,7 @@ function renderPOs() {
   const filtered = data.pos.filter(po => {
     if (f.no && !cfHas(po.no, f.no)) return false;
     if (f.customer && cfCustName(data, po.supplier) !== f.customer) return false;
-    if (f.date && po.date !== f.date) return false;
+    if (!cfInRange(po.date, f.dateFrom, f.dateTo)) return false;
     if (f.total && !(cfDigits(f.total) && String(Math.round(poTotalOf(po))).includes(cfDigits(f.total)))) return false;
     if (f.status && po.status !== f.status) return false;
     if (!q) return true;
@@ -4343,7 +4353,7 @@ function renderSOs() {
     if (f.no && !cfHas(so.no, f.no)) return false;
     if (f.customer && cfCustName(data, so.customer) !== f.customer) return false;
     if (f.poNo && !cfHas(so.poNo, f.poNo)) return false;
-    if (f.date && so.date !== f.date) return false;
+    if (!cfInRange(so.date, f.dateFrom, f.dateTo)) return false;
     if (f.items !== undefined && f.items !== '' && (so.items || []).length !== Number(f.items)) return false;
     if (f.status && so.status !== f.status) return false;
     if (f.invoice) {
@@ -4954,9 +4964,9 @@ function renderInvs() {
     if (f.no && !cfHas(inv.no, f.no)) return false;
     if (f.customer && cfCustName(data, inv.customer) !== f.customer) return false;
     if (f.soNo && !cfHas(inv.soNo, f.soNo)) return false;
-    if (f.date && inv.date !== f.date) return false;
-    if (f.ship && ((getInvSORecords(inv, data)[0] || {}).date || inv.deliveryDate || '') !== f.ship) return false;
-    if (f.due && inv.due !== f.due) return false;
+    if (!cfInRange(inv.date, f.dateFrom, f.dateTo)) return false;
+    if (!cfInRange((getInvSORecords(inv, data)[0] || {}).date || inv.deliveryDate || '', f.shipFrom, f.shipTo)) return false;
+    if (!cfInRange(inv.due, f.dueFrom, f.dueTo)) return false;
     if (f.total && !(cfDigits(f.total) && String(Math.round(invTotalOf(inv))).includes(cfDigits(f.total)))) return false;
     if (f.sent) {
       const isSent = sentInvNos.has(inv.no);
