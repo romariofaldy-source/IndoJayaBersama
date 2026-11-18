@@ -529,6 +529,27 @@
   .rp-day.today:not(.edge) { box-shadow: inset 0 0 0 1.5px var(--purple); }
   .rp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
   .rp-clear { border: 0; background: none; color: #e0455a; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+  /* ===== Tabel pas selebar halaman (kolom Aksi gak ketutup lagi) ===== */
+  /* Penyebab: .main (flex:1) gak boleh mengecil di bawah lebar tabel, jadi halaman melebar,
+     kena overflow-x:hidden di body, dan tabel gak bisa digeser. min-width:0 memperbaikinya. */
+  .main, .content { min-width: 0; }
+  .table-card { max-width: 100%; }
+  #po th, #po td, #so th, #so td, #inv th, #inv td { padding: 11px 8px; font-size: 12.5px; }
+  #po .col-filter-row th, #so .col-filter-row th, #inv .col-filter-row th { padding: 6px 5px !important; }
+  .col-filter-row .cf-input { min-width: 0; max-width: 150px; font-size: 11.5px; padding: 0 6px; }
+  .col-filter-row .rp-trigger { max-width: 118px; }
+  .cf-range, .rp-trigger { min-width: 0; }
+  #so .sj-toggle { min-width: 0; gap: 6px; padding: 4px 5px 4px 9px; font-size: 11.5px; }
+  #so .sj-toggle .sj-t-track { width: 30px; height: 18px; }
+  #so .sj-toggle .sj-t-knob { width: 14px; height: 14px; }
+  #so .sj-toggle.is-done .sj-t-knob { transform: translateX(12px); }
+  #so .sj-actions, #po .action-btns, #inv .action-btns { flex-wrap: wrap; gap: 5px; }
+  #so .sj-icon-btn { height: 30px; min-width: 30px; padding: 0 8px; }
+  /* Kolom Aksi nempel di kanan: tombol Lihat / Edit / Hapus selalu kelihatan walau tabel digeser */
+  #po th:last-child, #po td:last-child, #so th:last-child, #so td:last-child, #inv th:last-child, #inv td:last-child { position: sticky; right: 0; z-index: 2; background: var(--card-bg); box-shadow: -8px 0 12px -10px rgba(20,20,60,.25); }
+  #po .col-filter-row th:last-child, #so .col-filter-row th:last-child, #inv .col-filter-row th:last-child { background: var(--bg); }
+  @media (min-width: 769px) { #po .action-btns, #inv .action-btns { flex-wrap: wrap; } }
 </style>
 </head>
 <body>
