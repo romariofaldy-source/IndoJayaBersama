@@ -490,6 +490,20 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   }
+
+  /* ===== Filter per kolom ===== */
+  .col-filter-row th { padding: 6px 8px !important; background: var(--bg); border-bottom: 1px solid var(--border); text-transform: none; font-weight: 400; letter-spacing: 0; vertical-align: middle; }
+  .cf-input { width: 100%; min-width: 88px; height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text); font: inherit; font-size: 12px; box-sizing: border-box; transition: border-color .15s, box-shadow .15s, background .15s; }
+  .cf-input[type=date] { min-width: 132px; }
+  .cf-input[type=number] { min-width: 80px; }
+  .cf-input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 16%, transparent); }
+  .cf-input.cf-on { border-color: var(--purple); background: var(--purple-light); font-weight: 600; }
+  .cf-reset-mini { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .cf-reset-mini:hover { border-color: #e0455a; color: #e0455a; }
+  .cf-info { font-size: 12px; color: var(--text-muted); align-self: center; }
+  .cf-info.on { color: var(--purple); font-weight: 600; }
+  tfoot .cf-foot td { background: var(--purple-light); font-weight: 700; padding: 13px 14px; border-top: 2px solid var(--purple); font-size: 13px; }
+  tfoot .cf-foot .cf-sub { font-weight: 500; font-size: 11.5px; color: var(--text-muted); margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -733,24 +747,12 @@
         <button class="btn btn-success" onclick="exportTableToExcel('po')">📤 Export Excel</button>
       </div>
       <div class="table-card" style="margin-bottom: 20px;">
-        <div class="modal-body" style="padding: 16px 20px;">
+        <div class="modal-body" style="padding: 14px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Status</label>
-              <select id="po-filter-status" onchange="applyPOFilter()">
-                <option value="">-- Semua Status --</option>
-                <option value="Draft">Draft</option>
-                <option value="Diproses">Diproses (SJ Dibuat)</option>
-                <option value="Selesai">Selesai</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Outlet</label>
-              <select id="po-filter-customer" onchange="applyPOFilter()"></select>
-            </div>
             <div class="form-group" style="flex:0 0 auto;">
               <button class="btn btn-outline" onclick="resetPOFilter()">✕ Reset Filter</button>
             </div>
+            <span class="cf-info" id="po-cf-info">💡 Ketik / pilih di kotak bawah nama kolom untuk memfilter</span>
           </div>
         </div>
       </div>
@@ -766,8 +768,10 @@
               <th>Status</th>
               <th>Aksi</th>
             </tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-po-no" type="text" placeholder="Cari No PO..." oninput="setColFilter('po','no',this)" ></th><th><select class="cf-input" id="cf-po-customer" onchange="setColFilter('po','customer',this)"><option value="">Semua Outlet</option></select></th><th><input class="cf-input" id="cf-po-date" type="date" oninput="setColFilter('po','date',this)" onchange="setColFilter('po','date',this)"></th><th><input class="cf-input" id="cf-po-total" type="text" placeholder="Cari total..." oninput="setColFilter('po','total',this)" ></th><th><select class="cf-input" id="cf-po-status" onchange="setColFilter('po','status',this)"><option value="">Semua</option><option value="Draft">Draft</option><option value="Diproses">Diproses</option><option value="Selesai">Selesai</option></select></th><th><button class="cf-reset-mini" onclick="resetPOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="po-table"></tbody>
+          <tfoot id="po-foot"></tfoot>
         </table>
         </div>
       </div>
@@ -805,7 +809,7 @@
         <button class="btn btn-success" onclick="exportTableToExcel('so')">📤 Export Excel</button>
       </div>
       <div class="table-card" style="margin-bottom: 20px;">
-        <div class="modal-body" style="padding: 16px 20px;">
+        <div class="modal-body" style="padding: 14px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
             <div class="form-group" style="flex:1; min-width:300px;">
               <label>Periode Tanggal</label>
@@ -815,21 +819,10 @@
                 <input type="date" id="so-filter-to" onchange="applySOFilter()" title="Sampai tanggal">
               </div>
             </div>
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Status Invoice</label>
-              <select id="so-filter-invoice" onchange="applySOFilter()">
-                <option value="">-- Semua --</option>
-                <option value="belum">⏳ Belum dibuat Inv</option>
-                <option value="sudah">🧾 Sudah dibuat Inv</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Customer</label>
-              <select id="so-filter-customer" onchange="applySOFilter()"></select>
-            </div>
             <div class="form-group" style="flex:0 0 auto;">
               <button class="btn btn-outline" onclick="resetSOFilter()">✕ Reset Filter</button>
             </div>
+            <span class="cf-info" id="so-cf-info">💡 Ketik / pilih di kotak bawah nama kolom untuk memfilter</span>
           </div>
         </div>
       </div>
@@ -847,8 +840,10 @@
               <th>Status Invoice</th>
               <th>Aksi</th>
             </tr>
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-so-no" type="text" placeholder="Cari No SJ..." oninput="setColFilter('so','no',this)" ></th><th><select class="cf-input" id="cf-so-customer" onchange="setColFilter('so','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-so-poNo" type="text" placeholder="Cari Ref PO..." oninput="setColFilter('so','poNo',this)" ></th><th><input class="cf-input" id="cf-so-date" type="date" oninput="setColFilter('so','date',this)" onchange="setColFilter('so','date',this)"></th><th><input class="cf-input" id="cf-so-items" type="number" min="0" placeholder="Jml item" oninput="setColFilter('so','items',this)"></th><th><select class="cf-input" id="cf-so-status" onchange="setColFilter('so','status',this)"><option value="">Semua</option><option value="Dikirim">🚚 Sedang Dikirim</option><option value="Selesai">✅ Selesai Dikirim</option></select></th><th><select class="cf-input" id="cf-so-invoice" onchange="setColFilter('so','invoice',this)"><option value="">Semua</option><option value="belum">⏳ Belum dibuat Inv</option><option value="sudah">🧾 Sudah dibuat Inv</option></select></th><th><button class="cf-reset-mini" onclick="resetSOFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="so-table"></tbody>
+          <tfoot id="so-foot"></tfoot>
         </table>
         </div>
       </div>
@@ -863,18 +858,8 @@
         <button class="btn btn-success" onclick="exportTableToExcel('inv')">📤 Export Excel</button>
       </div>
       <div class="table-card" style="margin-bottom: 20px;">
-        <div class="modal-body" style="padding: 16px 20px;">
+        <div class="modal-body" style="padding: 14px 20px;">
           <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;">
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Status</label>
-              <select id="inv-filter-status" onchange="applyInvFilter()">
-                <option value="">-- Semua Status --</option>
-                <option value="BelumLunas">Belum Lunas</option>
-                <option value="Lunas Sebagian">Lunas Sebagian</option>
-                <option value="Lunas">Lunas</option>
-                <option value="JatuhTempo">⚠️ Jatuh Tempo</option>
-              </select>
-            </div>
             <div class="form-group" style="flex:1; min-width:300px;">
               <label>Periode Tanggal</label>
               <div style="display:flex; align-items:center; gap:8px;">
@@ -883,13 +868,10 @@
                 <input type="date" id="inv-filter-to" onchange="applyInvFilter()" title="Sampai tanggal">
               </div>
             </div>
-            <div class="form-group" style="flex:1; min-width:200px;">
-              <label>Customer</label>
-              <select id="inv-filter-customer" onchange="applyInvFilter()"></select>
-            </div>
             <div class="form-group" style="flex:0 0 auto;">
               <button class="btn btn-outline" onclick="resetInvFilter()">✕ Reset Filter</button>
             </div>
+            <span class="cf-info" id="inv-cf-info">💡 Ketik / pilih di kotak bawah nama kolom untuk memfilter</span>
           </div>
         </div>
       </div>
@@ -909,9 +891,10 @@
               <th>Terkirim</th>
               <th>Aksi</th>
             </tr>
-
+<tr class="col-filter-row"><th><input class="cf-input" id="cf-inv-date" type="date" oninput="setColFilter('inv','date',this)" onchange="setColFilter('inv','date',this)"></th><th><input class="cf-input" id="cf-inv-no" type="text" placeholder="Cari No Invoice..." oninput="setColFilter('inv','no',this)" ></th><th><select class="cf-input" id="cf-inv-customer" onchange="setColFilter('inv','customer',this)"><option value="">Semua Customer</option></select></th><th><input class="cf-input" id="cf-inv-soNo" type="text" placeholder="Cari Ref SJ..." oninput="setColFilter('inv','soNo',this)" ></th><th><input class="cf-input" id="cf-inv-ship" type="date" oninput="setColFilter('inv','ship',this)" onchange="setColFilter('inv','ship',this)"></th><th><input class="cf-input" id="cf-inv-due" type="date" oninput="setColFilter('inv','due',this)" onchange="setColFilter('inv','due',this)"></th><th><select class="cf-input" id="cf-inv-status" onchange="setColFilter('inv','status',this)"><option value="">Semua</option><option value="BelumLunas">Belum Lunas</option><option value="Lunas Sebagian">Lunas Sebagian</option><option value="Lunas">Lunas</option><option value="JatuhTempo">⚠️ Jatuh Tempo</option></select></th><th><input class="cf-input" id="cf-inv-total" type="text" placeholder="Cari total..." oninput="setColFilter('inv','total',this)" ></th><th><select class="cf-input" id="cf-inv-sent" onchange="setColFilter('inv','sent',this)"><option value="">Semua</option><option value="sudah">✅ Terkirim</option><option value="belum">📮 Belum Kirim</option></select></th><th><button class="cf-reset-mini" onclick="resetInvFilter()" title="Hapus semua filter">✕ Reset</button></th></tr>
           </thead>
           <tbody id="inv-table"></tbody>
+          <tfoot id="inv-foot"></tfoot>
         </table>
         </div>
       </div>
@@ -2946,6 +2929,65 @@ function populateCustomerSelect(selectId, selectedId, type) {
 // populateCustomerSelect di atas yang buat form modal — ini buat filter list-nya).
 // Isinya di-refresh tiap render biar selalu ikut data customer terbaru, dan pilihan
 // yang lagi aktif (selectedId) tetap kepilih ulang.
+
+// ===== FILTER PER KOLOM (PO / Surat Jalan / Invoice) =====
+// Tiap kotak di bawah header kolom jalan independen, bisa digabung (AND), dan tabel langsung menyesuaikan.
+let colFilters = { po: {}, so: {}, inv: {} };
+
+function cfEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function cfCustName(data, id) { return (data.customers.find(c => c.id == id) || {}).name || 'Unknown'; }
+function cfHas(v, q) { return String(v == null ? '' : v).toLowerCase().includes(String(q).toLowerCase().trim()); }
+function cfDigits(v) { return String(v == null ? '' : v).replace(/\D/g, ''); }
+function cfActive(tbl) { return Object.values(colFilters[tbl]).some(v => v !== '' && v != null); }
+function cfActiveCount(tbl) { return Object.values(colFilters[tbl]).filter(v => v !== '' && v != null).length; }
+
+function setColFilter(tbl, key, el) {
+  const val = (el.value || '').trim();
+  colFilters[tbl][key] = val;
+  el.classList.toggle('cf-on', val !== '');
+  ({ po: renderPOs, so: renderSOs, inv: renderInvs })[tbl]();
+}
+
+function clearColFilters(tbl) {
+  colFilters[tbl] = {};
+  document.querySelectorAll(`[id^="cf-${tbl}-"]`).forEach(el => {
+    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    el.classList.remove('cf-on');
+  });
+}
+
+// Dropdown customer: isinya nama UNIK yang benar-benar ada di data tabel itu (dinamis, bukan ketikan manual)
+function cfFillCustomerSelect(tbl, names, allLabel) {
+  const sel = document.getElementById('cf-' + tbl + '-customer');
+  if (!sel) return;
+  const uniq = [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id'));
+  let cur = colFilters[tbl].customer || '';
+  if (cur && !uniq.includes(cur)) { cur = ''; colFilters[tbl].customer = ''; }
+  const sig = allLabel + '|' + uniq.join('|');
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = `<option value="">${cfEsc(allLabel)}</option>` + uniq.map(n => `<option value="${cfEsc(n)}">${cfEsc(n)}</option>`).join('');
+    sel.dataset.sig = sig;
+  }
+  sel.value = cur;
+  sel.classList.toggle('cf-on', cur !== '');
+}
+
+// Footer auto-sum + info jumlah filter aktif
+function cfSetFoot(tbl, labelSpan, label, sumHtml, restSpan, shown, total) {
+  const foot = document.getElementById(tbl + '-foot');
+  if (foot) {
+    foot.innerHTML = `<tr class="cf-foot"><td colspan="${labelSpan}">${label} <span class="cf-sub">(${shown} dari ${total} data${cfActive(tbl) ? ' · hasil filter' : ''})</span></td>${sumHtml}<td colspan="${restSpan}"></td></tr>`;
+  }
+  const info = document.getElementById(tbl + '-cf-info');
+  if (info) {
+    const n = cfActiveCount(tbl);
+    info.classList.toggle('on', n > 0);
+    info.textContent = n > 0 ? `🔎 ${n} filter kolom aktif · menampilkan ${shown} dari ${total}` : '💡 Ketik / pilih di kotak bawah nama kolom untuk memfilter';
+  }
+}
+function poTotalOf(po) { return (po.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (po.discount || 0); }
+function invTotalOf(inv) { return (inv.items || []).reduce((a, i) => a + (i.qty * i.price), 0) - (inv.discount || 0); }
+
 function populateFilterCustomerSelect(selectId, selectedId) {
   const data = loadData();
   const select = document.getElementById(selectId);
@@ -3740,16 +3782,8 @@ function savePO() {
   resetPOModal();
 }
 
-function applyPOFilter() {
-  tableFilters.po.status = document.getElementById('po-filter-status').value;
-  tableFilters.po.customer = document.getElementById('po-filter-customer').value;
-  renderPOs();
-}
-
 function resetPOFilter() {
-  tableFilters.po = { status: '', customer: '' };
-  const statusEl = document.getElementById('po-filter-status');
-  if (statusEl) statusEl.value = '';
+  clearColFilters('po');
   renderPOs();
 }
 
@@ -3758,18 +3792,23 @@ function renderPOs() {
   const tbody = document.getElementById('po-table');
   const q = tableSearchQuery.po;
 
-  populateFilterCustomerSelect('po-filter-customer', tableFilters.po.customer);
+  cfFillCustomerSelect('po', data.pos.map(po => cfCustName(data, po.supplier)), 'Semua Outlet');
+  const f = colFilters.po;
 
   const filtered = data.pos.filter(po => {
-    if (tableFilters.po.status && po.status !== tableFilters.po.status) return false;
-    if (tableFilters.po.customer && String(po.supplier) !== String(tableFilters.po.customer)) return false;
+    if (f.no && !cfHas(po.no, f.no)) return false;
+    if (f.customer && cfCustName(data, po.supplier) !== f.customer) return false;
+    if (f.date && po.date !== f.date) return false;
+    if (f.total && !(cfDigits(f.total) && String(Math.round(poTotalOf(po))).includes(cfDigits(f.total)))) return false;
+    if (f.status && po.status !== f.status) return false;
     if (!q) return true;
     const supplier = data.customers.find(c => c.id == po.supplier)?.name || '';
     const haystack = `${po.no} ${supplier} ${po.status} ${po.notes || ''}`.toLowerCase();
     return haystack.includes(q);
   });
 
-  const hasActiveFilter = !!(tableFilters.po.status || tableFilters.po.customer);
+  const hasActiveFilter = cfActive('po');
+  cfSetFoot('po', 3, 'Total', `<td>${rupiah(filtered.reduce((a, po) => a + poTotalOf(po), 0))}</td>`, 2, filtered.length, data.pos.length);
   if (filtered.length === 0 && data.pos.length > 0) {
     const msg = q ? `Tidak ada PO yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada PO yang cocok dengan filter yang dipilih.' : 'Tidak ada PO.');
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
@@ -4272,7 +4311,6 @@ function toggleSOStatus(id, btn) {
 }
 
 function applySOFilter() {
-  tableFilters.so.invoice = document.getElementById('so-filter-invoice').value;
   const fromEl = document.getElementById('so-filter-from');
   const toEl = document.getElementById('so-filter-to');
   // Kalau tanggal "dari" lebih besar dari "sampai", tukar otomatis biar hasil gak kosong
@@ -4281,15 +4319,13 @@ function applySOFilter() {
   }
   tableFilters.so.from = fromEl.value;
   tableFilters.so.to = toEl.value;
-  tableFilters.so.customer = document.getElementById('so-filter-customer').value;
   renderSOs();
 }
 
 function resetSOFilter() {
   tableFilters.so = { from: '', to: '', customer: '', invoice: '' };
   ['so-filter-from', 'so-filter-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const invEl = document.getElementById('so-filter-invoice');
-  if (invEl) invEl.value = '';
+  clearColFilters('so');
   renderSOs();
 }
 
@@ -4298,16 +4334,22 @@ function renderSOs() {
   const tbody = document.getElementById('so-table');
   const q = tableSearchQuery.so;
 
-  populateFilterCustomerSelect('so-filter-customer', tableFilters.so.customer);
+  cfFillCustomerSelect('so', data.sos.map(so => cfCustName(data, so.customer)), 'Semua Customer');
+  const f = colFilters.so;
 
   const filtered = data.sos.filter(so => {
     if (tableFilters.so.from && (so.date || '') < tableFilters.so.from) return false;
     if (tableFilters.so.to && (so.date || '') > tableFilters.so.to) return false;
-    if (tableFilters.so.customer && String(so.customer) !== String(tableFilters.so.customer)) return false;
-    if (tableFilters.so.invoice) {
+    if (f.no && !cfHas(so.no, f.no)) return false;
+    if (f.customer && cfCustName(data, so.customer) !== f.customer) return false;
+    if (f.poNo && !cfHas(so.poNo, f.poNo)) return false;
+    if (f.date && so.date !== f.date) return false;
+    if (f.items !== undefined && f.items !== '' && (so.items || []).length !== Number(f.items)) return false;
+    if (f.status && so.status !== f.status) return false;
+    if (f.invoice) {
       const hasInv = getInvoicesOfSO(so, data).length > 0;
-      if (tableFilters.so.invoice === 'sudah' && !hasInv) return false;
-      if (tableFilters.so.invoice === 'belum' && hasInv) return false;
+      if (f.invoice === 'sudah' && !hasInv) return false;
+      if (f.invoice === 'belum' && hasInv) return false;
     }
     if (!q) return true;
     const customer = data.customers.find(c => c.id == so.customer)?.name || '';
@@ -4316,7 +4358,8 @@ function renderSOs() {
     return haystack.includes(q);
   }).slice().reverse(); // SJ terbaru di paling atas
 
-  const hasActiveFilter = !!(tableFilters.so.from || tableFilters.so.to || tableFilters.so.customer || tableFilters.so.invoice);
+  const hasActiveFilter = !!(tableFilters.so.from || tableFilters.so.to || cfActive('so'));
+  cfSetFoot('so', 4, 'Total', `<td><span class="sj-items-chip">${filtered.reduce((a, so) => a + (so.items || []).length, 0)}</span></td>`, 3, filtered.length, data.sos.length);
   if (filtered.length === 0 && data.sos.length > 0) {
     const msg = q ? `Tidak ada Surat Jalan yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Surat Jalan yang cocok dengan filter yang dipilih.' : 'Tidak ada Surat Jalan.');
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
@@ -4881,16 +4924,13 @@ function applyInvFilter() {
   }
   tableFilters.inv.from = fromEl.value;
   tableFilters.inv.to = toEl.value;
-  tableFilters.inv.status = document.getElementById('inv-filter-status').value;
-  tableFilters.inv.customer = document.getElementById('inv-filter-customer').value;
   renderInvs();
 }
 
 function resetInvFilter() {
   tableFilters.inv = { status: '', customer: '', from: '', to: '' };
-  const statusEl = document.getElementById('inv-filter-status');
-  if (statusEl) statusEl.value = '';
   ['inv-filter-from', 'inv-filter-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  clearColFilters('inv');
   renderInvs();
 }
 
@@ -4899,7 +4939,8 @@ function renderInvs() {
   const tbody = document.getElementById('inv-table');
   const todayStr = today();
 
-  populateFilterCustomerSelect('inv-filter-customer', tableFilters.inv.customer);
+  cfFillCustomerSelect('inv', data.invs.map(inv => cfCustName(data, inv.customer)), 'Semua Customer');
+  const f = colFilters.inv;
 
   // Kumpulkan semua nomor invoice yang sudah pernah dilampirkan ke Tanda Terima Dokumen
   const sentInvNos = new Set();
@@ -4910,11 +4951,22 @@ function renderInvs() {
 
   const q = tableSearchQuery.inv;
   const filteredInvs = data.invs.filter(inv => {
-    if (tableFilters.inv.customer && String(inv.customer) !== String(tableFilters.inv.customer)) return false;
+    if (f.no && !cfHas(inv.no, f.no)) return false;
+    if (f.customer && cfCustName(data, inv.customer) !== f.customer) return false;
+    if (f.soNo && !cfHas(inv.soNo, f.soNo)) return false;
+    if (f.date && inv.date !== f.date) return false;
+    if (f.ship && ((getInvSORecords(inv, data)[0] || {}).date || inv.deliveryDate || '') !== f.ship) return false;
+    if (f.due && inv.due !== f.due) return false;
+    if (f.total && !(cfDigits(f.total) && String(Math.round(invTotalOf(inv))).includes(cfDigits(f.total)))) return false;
+    if (f.sent) {
+      const isSent = sentInvNos.has(inv.no);
+      if (f.sent === 'sudah' && !isSent) return false;
+      if (f.sent === 'belum' && isSent) return false;
+    }
     if (tableFilters.inv.from && (inv.date || '') < tableFilters.inv.from) return false;
     if (tableFilters.inv.to && (inv.date || '') > tableFilters.inv.to) return false;
 
-    const statusFilter = tableFilters.inv.status;
+    const statusFilter = f.status;
     if (statusFilter) {
       const isLunas = inv.status === 'Lunas';
       const isPartial = inv.status === 'Lunas Sebagian';
@@ -4931,7 +4983,8 @@ function renderInvs() {
     return haystack.includes(q);
   });
 
-  const hasActiveFilter = !!(tableFilters.inv.status || tableFilters.inv.customer || tableFilters.inv.from || tableFilters.inv.to);
+  const hasActiveFilter = !!(tableFilters.inv.from || tableFilters.inv.to || cfActive('inv'));
+  cfSetFoot('inv', 7, 'Total', `<td>${rupiah(filteredInvs.reduce((a, inv) => a + invTotalOf(inv), 0))}</td>`, 2, filteredInvs.length, data.invs.length);
   if (filteredInvs.length === 0 && data.invs.length > 0) {
     const msg = q ? `Tidak ada Invoice yang cocok dengan pencarian "${q}"` : (hasActiveFilter ? 'Tidak ada Invoice yang cocok dengan filter yang dipilih.' : 'Tidak ada Invoice.');
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">${msg}</td></tr>`;
@@ -6803,10 +6856,11 @@ function switchPage(pageName) {
     so: { from: '', to: '', customer: '', invoice: '' },
     inv: { status: '', customer: '', from: '', to: '' }
   };
-  ['po-filter-status', 'so-filter-from', 'so-filter-to', 'so-filter-invoice', 'inv-filter-status', 'inv-filter-from', 'inv-filter-to'].forEach(id => {
+  ['so-filter-from', 'so-filter-to', 'inv-filter-from', 'inv-filter-to'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  ['po', 'so', 'inv'].forEach(clearColFilters);
 
   renderActivePage(pageName);
 }
